@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <!-- WinForms is pulled in purely for System.Windows.Forms.NotifyIcon (tray). -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationIcon>appicon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Embedded so the tray icon can also load it as a resource if we ever want one
+         master icon that stays consistent across Explorer, taskbar, and tray. -->
+    <Resource Include="appicon.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Core gives us the AgentStatus DTO so the Manager deserialises the exact same shape. -->
+    <ProjectReference Include="..\YieldDataLogger.Core\YieldDataLogger.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- SQLite - Manager reads the per-symbol files written by the Agent's SqliteSink. -->
+    <PackageReference Include="System.Data.SQLite.Core" Version="1.0.119" />
+  </ItemGroup>
+
+</Project>

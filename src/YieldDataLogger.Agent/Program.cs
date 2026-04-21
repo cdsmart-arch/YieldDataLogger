@@ -58,7 +58,24 @@ builder.Services.AddSingleton<IPriceSink>(sp =>
     return new ScidSink(path, opts.AllowedSymbols, logger);
 });
 
-builder.Services.AddHostedService<TickHubClient>();
+// Subscription plumbing: store (file IO) -> manager (in-memory + events) -> watcher (tail the
+// file, push changes through the manager). Order matters for construction only - the manager
+// loads the current set in its constructor, so by the time the hub client runs it already has
+// an authoritative list.
+builder.Services.AddSingleton<SubscriptionStore>(sp =>
+{
+    var opts = sp.GetRequiredService<IOptions<AgentOptions>>().Value;
+    var path = Environment.ExpandEnvironmentVariables(opts.SubscriptionsPath);
+    return new SubscriptionStore(path, sp.GetRequiredService<ILogger<SubscriptionStore>>());
+});
+builder.Services.AddSingleton<SubscriptionManager>();
+builder.Services.AddHostedService<SubscriptionWatcherService>();
+
+// Register TickHubClient once as singleton + hosted service so the StatusWriter can inject it
+// to read live connection state without running a second copy.
+builder.Services.AddSingleton<TickHubClient>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<TickHubClient>());
+builder.Services.AddHostedService<StatusWriterService>();
 
 // Route durable error logging to the same ProgramData tree the other processes use.
 ErrorLog.DefaultPath = Path.Combine(

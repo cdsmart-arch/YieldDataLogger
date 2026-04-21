@@ -14,8 +14,26 @@ public sealed class AgentOptions
     /// <summary>Full hub URL, e.g. http://localhost:5055/hubs/ticks or https://api.example.com/hubs/ticks.</summary>
     public string HubUrl { get; set; } = "http://localhost:5055/hubs/ticks";
 
-    /// <summary>Canonical symbols this agent wants ticks for.</summary>
+    /// <summary>
+    /// Base URL of the REST API. Used by the Agent only to populate AgentStatus.ApiBaseUrl
+    /// so the Manager knows where to fetch the instrument catalog. If left empty it is
+    /// derived from HubUrl by stripping the "/hubs/..." suffix.
+    /// </summary>
+    public string? ApiBaseUrl { get; set; }
+
+    /// <summary>
+    /// Initial ("seed") subscriptions used when no subscriptions.json exists yet. Once a
+    /// subscriptions file has been written (either by the Manager or by the Agent on first
+    /// run) it becomes the authoritative source and this property is ignored.
+    /// </summary>
     public string[] Symbols { get; set; } = Array.Empty<string>();
+
+    /// <summary>
+    /// Absolute path to the persisted subscription list (JSON). Lives next to the status
+    /// file by default. %ENV% variables are expanded.
+    /// </summary>
+    public string SubscriptionsPath { get; set; } =
+        "%ProgramData%\\YieldDataLogger\\Agent\\subscriptions.json";
 
     /// <summary>Optional bearer token attached to the hub connection. Empty = no auth (current default).</summary>
     public string? AuthToken { get; set; }
@@ -24,6 +42,27 @@ public sealed class AgentOptions
     public int ReconnectDelaySeconds { get; set; } = 5;
 
     public AgentSinksOptions Sinks { get; set; } = new();
+
+    public AgentStatusWriterOptions Status { get; set; } = new();
+}
+
+/// <summary>
+/// Controls the periodic status JSON the Agent writes so the Manager (and anything else
+/// observing) can render a live dashboard without an IPC channel.
+/// </summary>
+public sealed class AgentStatusWriterOptions
+{
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>
+    /// Absolute path to the JSON status file. %ENV% variables are expanded; the parent
+    /// directory is created on startup. ProgramData is the default because it's the canonical
+    /// machine-wide location for service-managed state on Windows.
+    /// </summary>
+    public string Path { get; set; } = "%ProgramData%\\YieldDataLogger\\Agent\\status.json";
+
+    /// <summary>How often to refresh the file. Defaults to every second.</summary>
+    public int IntervalSeconds { get; set; } = 1;
 }
 
 public sealed class AgentSinksOptions

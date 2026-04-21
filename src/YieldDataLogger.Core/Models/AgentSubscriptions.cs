@@ -1,0 +1,23 @@
+namespace YieldDataLogger.Core.Models;
+
+/// <summary>
+/// Persisted subscription list for a single Agent installation. Written by the Manager
+/// (end user picking instruments) and read / file-watched by the Agent (which applies the
+/// diff against the live SignalR hub connection). Living in <see cref="Core"/> keeps the
+/// contract in one place - both sides deserialise it with the same <c>System.Text.Json</c>
+/// camelCase options.
+///
+/// Semantics: the symbol list is authoritative - what the Agent should be subscribed to
+/// right now. Added symbols produce Subscribe calls, removed ones produce Unsubscribe calls.
+/// </summary>
+public sealed record AgentSubscriptions
+{
+    /// <summary>Schema version; bump if the contract changes incompatibly.</summary>
+    public int SchemaVersion { get; init; } = 1;
+
+    /// <summary>Canonical symbol list the Agent should subscribe to.</summary>
+    public IReadOnlyList<string> Symbols { get; init; } = Array.Empty<string>();
+
+    /// <summary>UTC timestamp of the most recent edit. Useful for diagnostics / "last saved".</summary>
+    public DateTime UpdatedAtUtc { get; init; }
+}

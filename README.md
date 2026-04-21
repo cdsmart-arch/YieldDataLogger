@@ -16,7 +16,7 @@ src/
   YieldDataLogger.Collector    hosted service: CNBC HTTP poller + Playwright investing client + sink fan-out
   YieldDataLogger.Api          ASP.NET Core REST (+ SignalR in phase 3b), Azure-hosted
   YieldDataLogger.Agent        (phase 4) Windows Service running on each trading PC
-  YieldDataLogger.Manager      (phase 5) WPF tray app for credentials + subscriptions
+  YieldDataLogger.Manager      WPF tray app: dashboard, subscriptions, Agent control
   YieldDataLogger.NT           (phase 6) NinjaTrader 8 indicator
   YieldDataLogger.Client       (phase 8) .NET library consumed by the GEX apps
   YieldDataLogger.Installer    WiX/Inno MSI
@@ -35,9 +35,11 @@ src/
 | 3b-bis| done   | Centralised price-change dedup in `TickDispatcher`                 |
 | 4a    | done   | `YieldDataLogger.Agent` console host - SignalR client → local sinks |
 | 4b    | next   | Package Agent as Windows Service + installer                       |
-| 5     | next   | `YieldDataLogger.Manager` tray UX (credentials + symbol picker)    |
+| 5a    | done   | Manager tray dashboard + Agent `status.json` observability         |
+| 5b    | done   | Manager symbol picker → `subscriptions.json` → live hub Subscribe/Unsubscribe |
+| 5c    | next   | Historical backfill: pull `GET /api/ticks` into local SQLite after connect |
 | 3c    | later  | Identity + JWT auth (deferred until end-to-end pipeline is solid)  |
-| 3d    | later  | Container Apps + Azure Table Storage deployment                    |
+| 3d    | later  | Container Apps + hardened Azure deployment                         |
 
 ## Storage backends
 
@@ -53,6 +55,52 @@ The API supports two backends, chosen by `Storage:Backend` in `appsettings.json`
 Both backends implement the same `IPriceSink` (write) and `IPriceHistoryReader` (read)
 contracts, so switching is a single config flip. Both can also be enabled simultaneously
 for dual-write during migrations.
+
+## Historical data: durability vs. app updates
+
+Tick history is **not** stored inside the App Service process. It lives in **Azure Table
+Storage** (or SQL), keyed by storage account / database. Deploying a new build of the API
+replaces only application binaries and configuration; **it does not delete table rows**
+unless you explicitly change code or migrations to do so.
+
+**Operational rules of thumb**
+
+- Keep the **same storage account and connection string** across API redeploys so the
+  `PriceTicks` table continues to accumulate. Rotating keys is fine; deleting the account is not.
+- **EF migrations** for the SQL path must never `DROP` the ticks table or bulk-delete rows as
+  part of routine deploys. Prefer additive-only migrations.
+- Treat scraped ticks as **append-only**: there is no vendor API to re-download history if
+  you wipe storage. Back up the storage account (or enable point-in-time restore where
+  available) according to your risk tolerance.
+
+**Future: chart history on the client**
+
+Live SignalR gives you the latest price changes; **historic lines** need rows already on
+disk. Planned next step (phase **5c**): when the Agent connects (or when you add a symbol),
+call `GET /api/ticks/{symbol}` with a time range and merge into local SQLite so Ninja /
+Sierra / indicators can render a full line. Until that ships, history grows from the moment
+you start scraping—so getting the API onto Azure and logging continuously matters as soon
+as possible.
+
+## Deploying the API to Azure (checklist)
+
+High level—details depend on whether you use App Service, Container Apps, or VMs:
+
+1. **Create or reuse an Azure Storage account** with Tables enabled. Note the connection string.
+2. **Configure the hosted API** with application settings (not committed to git):
+   - `Storage:Backend` = `table`
+   - `Storage:Tables:ConnectionString` = your production connection string
+   - Any collector / Playwright settings you use in production
+3. **HTTPS URL**: set the public site URL (e.g. `https://your-app.azurewebsites.net`). The
+   Agent’s `HubUrl` should be `https://your-app.azurewebsites.net/hubs/ticks` and
+   `ApiBaseUrl` (or derivation from hub URL) should match `https://your-app.azurewebsites.net`
+   so the Manager can load `GET /api/instruments`.
+4. **CORS** is not required for the Agent (SignalR client is not browser-based); browser admin
+   UI may need CORS if served from a different origin.
+5. After deploy, verify `GET https://.../healthz` and open `/admin/` for instrument management.
+
+The **local Agent + Manager** on each PC then point at the production URL; subscription
+and status files stay on that machine under `%ProgramData%` (or `%TEMP%` in Development).
 
 ## Run locally
 
