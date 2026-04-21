@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>YieldDataLogger · Live ticks</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="live.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">YDL</span>
+    <span class="brand-name">YieldDataLogger</span>
+    <span class="brand-sub">live ticks</span>
+  </div>
+  <div class="topbar-right">
+    <span id="conn-state" class="pill pill-state">disconnected</span>
+    <a class="pill pill-link" href="/admin/">Catalog</a>
+    <a class="pill pill-link" href="/swagger" target="_blank" rel="noopener">API docs</a>
+  </div>
+</header>
+
+<main class="container">
+
+  <section class="card">
+    <header class="card-header">
+      <h2>Subscriptions</h2>
+      <p class="muted">
+        Pick symbols from the catalog to receive real-time ticks via the <code>/hubs/ticks</code> SignalR hub.
+        Each tick is the same <code>{ symbol, tsUnix, price, source }</code> shape as the REST DTO.
+      </p>
+    </header>
+    <div class="live-controls">
+      <label class="live-symbol">
+        <span>Symbol</span>
+        <input type="text" id="sym-input" list="sym-options" autocomplete="off"
+               placeholder="e.g. US10Y" maxlength="32" />
+        <datalist id="sym-options"></datalist>
+      </label>
+      <div class="live-actions">
+        <button id="btn-subscribe"   class="btn btn-primary">Subscribe</button>
+        <button id="btn-unsubscribe" class="btn btn-ghost">Unsubscribe</button>
+        <button id="btn-clear-log"   class="btn btn-ghost">Clear log</button>
+      </div>
+      <div id="subs" class="subs"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <header class="card-header">
+      <div class="list-header">
+        <h2>Tick log</h2>
+        <div class="log-meta">
+          <span id="rate" class="pill">0 /s</span>
+          <span id="count" class="pill">0 total</span>
+        </div>
+      </div>
+    </header>
+    <div class="log-wrap">
+      <table id="log-table">
+        <thead>
+          <tr>
+            <th class="col-time">Time</th>
+            <th class="col-symbol">Symbol</th>
+            <th class="col-price">Price</th>
+            <th class="col-source">Source</th>
+          </tr>
+        </thead>
+        <tbody id="log-body">
+          <tr class="log-empty"><td colspan="4">Waiting for ticks. Subscribe to at least one symbol above.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<!-- Microsoft SignalR JS client (matches the .NET 8 server) -->
+<script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js" referrerpolicy="no-referrer"></script>
+<script src="live.js"></script>
+</body>
+</html>

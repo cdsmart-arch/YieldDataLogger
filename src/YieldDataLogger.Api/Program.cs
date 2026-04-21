@@ -1,7 +1,9 @@
 using Azure.Data.Tables;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using YieldDataLogger.Api.Data;
 using YieldDataLogger.Api.Hosting;
+using YieldDataLogger.Api.Realtime;
 using YieldDataLogger.Api.Sinks;
 using YieldDataLogger.Api.Storage;
 using YieldDataLogger.Api.Storage.Sql;
@@ -15,6 +17,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// --- SignalR real-time push (Phase 3b) ---
+// camelCase JSON so hub payloads match the REST DTO shape used by clients.
+builder.Services.AddSignalR()
+    .AddJsonProtocol(options =>
+    {
+        options.PayloadSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
+builder.Services.AddSingleton<IPriceSink, SignalRPriceSink>();
 
 // --- Storage configuration ---
 builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection(StorageOptions.SectionName));
@@ -76,6 +87,7 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.MapControllers();
+app.MapHub<TicksHub>("/hubs/ticks");
 app.MapGet("/", () => Results.Redirect("/admin/"));
 app.MapGet("/healthz", () => Results.Ok(new { status = "ok", backend, utc = DateTime.UtcNow }));
 
