@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YieldDataLogger.Core", "src
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YieldDataLogger.Collector", "src\YieldDataLogger.Collector\YieldDataLogger.Collector.csproj", "{F2876139-0DFE-4A40-B29B-3802B399B3E5}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YieldDataLogger.Api", "src\YieldDataLogger.Api\YieldDataLogger.Api.csproj", "{B4B316A8-DFB0-4859-846B-7CF4E4C053C2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -26,9 +28,14 @@ Global
 		{F2876139-0DFE-4A40-B29B-3802B399B3E5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F2876139-0DFE-4A40-B29B-3802B399B3E5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F2876139-0DFE-4A40-B29B-3802B399B3E5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B4B316A8-DFB0-4859-846B-7CF4E4C053C2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B4B316A8-DFB0-4859-846B-7CF4E4C053C2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B4B316A8-DFB0-4859-846B-7CF4E4C053C2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B4B316A8-DFB0-4859-846B-7CF4E4C053C2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{8FEADBDF-6EB6-4ED1-8D45-049229E91AC4} = {E7C665D6-FF74-4BFB-A7F8-66902D15080F}
 		{F2876139-0DFE-4A40-B29B-3802B399B3E5} = {E7C665D6-FF74-4BFB-A7F8-66902D15080F}
+		{B4B316A8-DFB0-4859-846B-7CF4E4C053C2} = {E7C665D6-FF74-4BFB-A7F8-66902D15080F}
 	EndGlobalSection
 EndGlobal
