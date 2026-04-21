@@ -1,0 +1,13 @@
+* text=auto
+
+*.cs       text diff=csharp
+*.csproj   text merge=union
+*.sln      text eol=crlf merge=union
+*.json     text
+*.md       text
+*.xaml     text
+
+*.sqlite   binary
+*.scid     binary
+*.png      binary
+*.ico      binary
