@@ -1,7 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using YieldDataLogger.Api.Data;
-using YieldDataLogger.Api.Data.Entities;
+using YieldDataLogger.Api.Storage;
 
 namespace YieldDataLogger.Api.Controllers;
 
@@ -9,18 +7,17 @@ namespace YieldDataLogger.Api.Controllers;
 [Route("api/ticks")]
 public sealed class TicksController : ControllerBase
 {
-    private readonly IDbContextFactory<YieldDbContext> _factory;
+    private readonly IPriceHistoryReader _reader;
 
-    public TicksController(IDbContextFactory<YieldDbContext> factory)
+    public TicksController(IPriceHistoryReader reader)
     {
-        _factory = factory;
+        _reader = reader;
     }
 
     /// <summary>
-    /// Returns raw ticks for <paramref name="symbol"/>. The default is the most recent 1000
-    /// ticks (descending by timestamp). Pass fromTs/toTs (unix seconds) to bound the window.
-    /// NT8 and Sierra agents use this to backfill local stores before subscribing to the
-    /// live SignalR feed.
+    /// Returns raw ticks for <paramref name="symbol"/>, newest first. Pass fromTs/toTs
+    /// (unix seconds) to bound the window. NT8 and Sierra agents use this to backfill
+    /// local stores before subscribing to the live SignalR feed (Phase 3b).
     /// </summary>
     [HttpGet("{symbol}")]
     public async Task<ActionResult<IEnumerable<PriceTickDto>>> GetHistory(
@@ -30,31 +27,18 @@ public sealed class TicksController : ControllerBase
         [FromQuery] int take = 1000,
         CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(symbol))
-            return BadRequest("symbol is required");
-        if (take <= 0 || take > 100_000)
-            return BadRequest("take must be between 1 and 100000");
+        if (string.IsNullOrWhiteSpace(symbol)) return BadRequest("symbol is required");
+        if (take <= 0 || take > 100_000) return BadRequest("take must be between 1 and 100000");
 
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        var q = db.PriceTicks.AsNoTracking().Where(p => p.Symbol == symbol);
-        if (fromTs is double f) q = q.Where(p => p.TsUnix >= f);
-        if (toTs is double t) q = q.Where(p => p.TsUnix <= t);
-        q = q.OrderByDescending(p => p.TsUnix).Take(take);
-
-        var rows = await q.Select(p => new PriceTickDto(p.Symbol, p.TsUnix, p.Price, p.Source)).ToListAsync(ct);
+        var rows = await _reader.GetHistoryAsync(symbol, fromTs, toTs, take, ct);
         return Ok(rows);
     }
 
     [HttpGet("{symbol}/latest")]
     public async Task<ActionResult<PriceTickDto>> GetLatest(string symbol, CancellationToken ct = default)
     {
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        var row = await db.PriceTicks.AsNoTracking()
-            .Where(p => p.Symbol == symbol)
-            .OrderByDescending(p => p.TsUnix)
-            .FirstOrDefaultAsync(ct);
-        if (row is null) return NotFound();
-        return Ok(new PriceTickDto(row.Symbol, row.TsUnix, row.Price, row.Source));
+        var row = await _reader.GetLatestAsync(symbol, ct);
+        return row is null ? NotFound() : Ok(row);
     }
 }
 

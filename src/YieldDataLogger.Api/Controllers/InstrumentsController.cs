@@ -1,51 +1,46 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using YieldDataLogger.Api.Data;
 using YieldDataLogger.Collector.Instruments;
 using YieldDataLogger.Core.Models;
 
 namespace YieldDataLogger.Api.Controllers;
 
+/// <summary>
+/// Exposes the instrument catalog. Source of truth is instruments.json on disk - loaded
+/// into <see cref="InstrumentCatalog"/> at startup by the collector - so this controller
+/// just proxies the in-memory catalog and round-trips admin edits back to the JSON file.
+/// Keeping the catalog out of storage avoids drift between the API, the collector and the
+/// Phase 4 offline agent (which reads the same JSON).
+/// </summary>
 [ApiController]
 [Route("api/instruments")]
 public sealed class InstrumentsController : ControllerBase
 {
-    private readonly IDbContextFactory<YieldDbContext> _factory;
     private readonly InstrumentCatalog _catalog;
 
-    public InstrumentsController(IDbContextFactory<YieldDbContext> factory, InstrumentCatalog catalog)
+    public InstrumentsController(InstrumentCatalog catalog)
     {
-        _factory = factory;
         _catalog = catalog;
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<InstrumentDto>>> GetAll(CancellationToken ct = default)
+    public ActionResult<IEnumerable<InstrumentDto>> GetAll()
     {
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        var rows = await db.Instruments.AsNoTracking()
-            .OrderBy(i => i.Category).ThenBy(i => i.CanonicalSymbol)
+        var rows = _catalog.All
+            .OrderBy(i => i.Category ?? "").ThenBy(i => i.CanonicalSymbol, StringComparer.OrdinalIgnoreCase)
             .Select(i => new InstrumentDto(i.CanonicalSymbol, i.InvestingPid, i.CnbcSymbol, i.Category))
-            .ToListAsync(ct);
+            .ToArray();
         return Ok(rows);
     }
 
     [HttpGet("{symbol}")]
-    public async Task<ActionResult<InstrumentDto>> Get(string symbol, CancellationToken ct = default)
+    public ActionResult<InstrumentDto> Get(string symbol)
     {
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        var row = await db.Instruments.AsNoTracking()
-            .FirstOrDefaultAsync(i => i.CanonicalSymbol == symbol, ct);
-        if (row is null) return NotFound();
-        return Ok(new InstrumentDto(row.CanonicalSymbol, row.InvestingPid, row.CnbcSymbol, row.Category));
+        if (!_catalog.BySymbol.TryGetValue(symbol, out var instr)) return NotFound();
+        return Ok(new InstrumentDto(instr.CanonicalSymbol, instr.InvestingPid, instr.CnbcSymbol, instr.Category));
     }
 
-    /// <summary>
-    /// Upserts an instrument in both the JSON catalog (source-of-truth for the running collector)
-    /// and the DB mirror. Phase 3c will lock this behind an admin role.
-    /// </summary>
     [HttpPost]
-    public async Task<ActionResult<InstrumentDto>> Upsert([FromBody] InstrumentDto dto, CancellationToken ct = default)
+    public ActionResult<InstrumentDto> Upsert([FromBody] InstrumentDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.CanonicalSymbol))
             return BadRequest("canonicalSymbol required");
@@ -64,42 +59,14 @@ public sealed class InstrumentsController : ControllerBase
         catch (InvalidOperationException ex) { return Conflict(ex.Message); }
         _catalog.Save();
 
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        var existing = await db.Instruments.FirstOrDefaultAsync(i => i.CanonicalSymbol == dto.CanonicalSymbol, ct);
-        if (existing is null)
-        {
-            db.Instruments.Add(new Data.Entities.InstrumentEntity
-            {
-                CanonicalSymbol = instr.CanonicalSymbol,
-                InvestingPid = instr.InvestingPid,
-                CnbcSymbol = instr.CnbcSymbol,
-                Category = instr.Category,
-            });
-        }
-        else
-        {
-            existing.InvestingPid = instr.InvestingPid;
-            existing.CnbcSymbol = instr.CnbcSymbol;
-            existing.Category = instr.Category;
-        }
-        await db.SaveChangesAsync(ct);
-
         return Ok(dto);
     }
 
     [HttpDelete("{symbol}")]
-    public async Task<IActionResult> Delete(string symbol, CancellationToken ct = default)
+    public IActionResult Delete(string symbol)
     {
         if (!_catalog.Remove(symbol)) return NotFound();
         _catalog.Save();
-
-        await using var db = await _factory.CreateDbContextAsync(ct);
-        var row = await db.Instruments.FirstOrDefaultAsync(i => i.CanonicalSymbol == symbol, ct);
-        if (row is not null)
-        {
-            db.Instruments.Remove(row);
-            await db.SaveChangesAsync(ct);
-        }
         return NoContent();
     }
 }
