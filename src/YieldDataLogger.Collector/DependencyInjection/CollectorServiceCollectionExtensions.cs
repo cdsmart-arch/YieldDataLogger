@@ -115,7 +115,14 @@ internal sealed class InstrumentCatalogLoader : IHostedService
     {
         var file = _options.Value.InstrumentsFile;
         if (!Path.IsPathRooted(file))
-            file = Path.Combine(_env.ContentRootPath, file);
+        {
+            // Look in the app's content root first (Collector layout: JSON sits next to the csproj
+            // and the bin/Debug copy is what ships). Fall back to BaseDirectory for hosts like
+            // the Api, which only receives the file as a <Link>ed copy-to-output item.
+            var contentRoot = Path.Combine(_env.ContentRootPath, file);
+            var baseDir = Path.Combine(AppContext.BaseDirectory, file);
+            file = File.Exists(contentRoot) ? contentRoot : baseDir;
+        }
         _catalog.Load(file);
         return Task.CompletedTask;
     }
