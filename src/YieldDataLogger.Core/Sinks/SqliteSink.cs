@@ -11,13 +11,14 @@ namespace YieldDataLogger.Core.Sinks;
 /// schema used by the original YieldLoggerUI app: PriceData(TIMESTAMP real, CLOSE real).
 /// Kept compatible on purpose so the forthcoming NT8 indicator and any other legacy
 /// reader can consume the same files without changes.
+///
+/// Dedup is handled centrally by the TickDispatcher, so this sink only ever sees ticks
+/// whose price differs from the previous one for that symbol.
 /// </summary>
 public sealed class SqliteSink : IPriceSink
 {
     private readonly string _directory;
     private readonly ILogger<SqliteSink> _logger;
-    private readonly Dictionary<string, double> _lastPriceBySymbol = new(StringComparer.Ordinal);
-    private readonly object _dedupGate = new();
 
     public string Name => "sqlite";
 
@@ -30,19 +31,6 @@ public sealed class SqliteSink : IPriceSink
 
     public ValueTask WriteAsync(PriceTick tick, CancellationToken ct = default)
     {
-        // Dedup identical consecutive prices per symbol - matches the old ProcessPoller behaviour
-        // where only changed prices were persisted. Cheap to do here once, beats every sink
-        // re-implementing the same check.
-        lock (_dedupGate)
-        {
-            if (_lastPriceBySymbol.TryGetValue(tick.CanonicalSymbol, out var last) &&
-                last == tick.Price)
-            {
-                return ValueTask.CompletedTask;
-            }
-            _lastPriceBySymbol[tick.CanonicalSymbol] = tick.Price;
-        }
-
         var file = Path.Combine(_directory, $"{tick.CanonicalSymbol}.sqlite");
         try
         {

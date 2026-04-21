@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using YieldDataLogger.Api.Data;
@@ -13,15 +12,13 @@ namespace YieldDataLogger.Api.Sinks;
 /// pooled DbContext factory so each write is a short-lived scope (the dispatcher fans
 /// out from every hosted service, so we can't rely on a per-request scope here).
 ///
-/// Dedup mirrors the SqliteSink: consecutive identical prices for the same symbol are
-/// dropped, which both saves write load and avoids primary-key collisions when ticks
-/// arrive with the same TsUnix.
+/// Dedup is centralised in the <see cref="Collector.Pipeline.TickDispatcher"/>; duplicate-key
+/// DB errors are only expected on rare source races and are treated as harmless.
 /// </summary>
 public sealed class SqlPriceSink : IPriceSink
 {
     private readonly IDbContextFactory<YieldDbContext> _factory;
     private readonly ILogger<SqlPriceSink> _logger;
-    private readonly ConcurrentDictionary<string, double> _lastPriceBySymbol = new(StringComparer.Ordinal);
 
     public string Name => "sql";
 
@@ -33,10 +30,6 @@ public sealed class SqlPriceSink : IPriceSink
 
     public async ValueTask WriteAsync(PriceTick tick, CancellationToken ct = default)
     {
-        if (_lastPriceBySymbol.TryGetValue(tick.CanonicalSymbol, out var last) && last == tick.Price)
-            return;
-        _lastPriceBySymbol[tick.CanonicalSymbol] = tick.Price;
-
         try
         {
             await using var db = await _factory.CreateDbContextAsync(ct).ConfigureAwait(false);

@@ -9,6 +9,7 @@ using YieldDataLogger.Api.Storage;
 using YieldDataLogger.Api.Storage.Sql;
 using YieldDataLogger.Api.Storage.Tables;
 using YieldDataLogger.Collector.DependencyInjection;
+using YieldDataLogger.Collector.Pipeline;
 using YieldDataLogger.Core.Abstractions;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -89,6 +90,17 @@ app.UseStaticFiles();
 app.MapControllers();
 app.MapHub<TicksHub>("/hubs/ticks");
 app.MapGet("/", () => Results.Redirect("/admin/"));
-app.MapGet("/healthz", () => Results.Ok(new { status = "ok", backend, utc = DateTime.UtcNow }));
+app.MapGet("/healthz", (TickDispatcher dispatcher) => Results.Ok(new
+{
+    status = "ok",
+    backend,
+    utc = DateTime.UtcNow,
+    ticks = new
+    {
+        received   = dispatcher.TicksReceived,
+        deduped    = dispatcher.TicksDeduped,
+        dispatched = dispatcher.TicksDispatched,
+    }
+}));
 
 app.Run();

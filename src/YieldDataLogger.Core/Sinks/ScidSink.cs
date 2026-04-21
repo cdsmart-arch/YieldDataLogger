@@ -11,14 +11,15 @@ namespace YieldDataLogger.Core.Sinks;
 /// Only the symbols in <see cref="AllowedSymbols"/> are written to - mirrors the explicit
 /// subscription list that lived in the old SierraMethods.SierraInstruments HashSet.
 /// Binary layout is exactly what Sierra Chart expects: 56-byte header, 40-byte records.
+///
+/// Dedup is handled centrally by the TickDispatcher, so this sink only ever sees ticks
+/// whose price differs from the previous one for that symbol.
 /// </summary>
 public sealed class ScidSink : IPriceSink
 {
     private readonly string _sierraDataFolder;
     private readonly HashSet<string> _allowed;
     private readonly ILogger<ScidSink> _logger;
-    private readonly Dictionary<string, double> _lastPriceBySymbol = new(StringComparer.Ordinal);
-    private readonly object _dedupGate = new();
 
     public string Name => "scid";
 
@@ -36,16 +37,6 @@ public sealed class ScidSink : IPriceSink
     {
         if (!_allowed.Contains(tick.CanonicalSymbol))
             return ValueTask.CompletedTask;
-
-        lock (_dedupGate)
-        {
-            if (_lastPriceBySymbol.TryGetValue(tick.CanonicalSymbol, out var last) &&
-                last == tick.Price)
-            {
-                return ValueTask.CompletedTask;
-            }
-            _lastPriceBySymbol[tick.CanonicalSymbol] = tick.Price;
-        }
 
         var file = Path.Combine(_sierraDataFolder, $"_{tick.CanonicalSymbol}.scid");
         try
