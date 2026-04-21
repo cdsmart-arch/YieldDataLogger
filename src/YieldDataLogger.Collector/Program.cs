@@ -44,7 +44,29 @@ builder.Services.AddHttpClient("cnbc", http =>
 
 builder.Services.AddSingleton<InstrumentCatalog>();
 builder.Services.AddSingleton<TickDispatcher>();
-builder.Services.AddSingleton<IInvestingStreamClient, InvestingSocketClient>();
+
+// Select the Investing transport at startup. "playwright" uses a headless Chromium +
+// the vendor JS bundle (the approach the old Selenium app used, which is the only one
+// that currently works against stream80.forexpros.com); "direct" keeps the raw Socket.IO
+// client around for testing/future use.
+builder.Services.AddSingleton<IInvestingStreamClient>(sp =>
+{
+    var opts = sp.GetRequiredService<IOptions<CollectorOptions>>().Value.Investing;
+    var transport = (opts.Transport ?? "playwright").Trim().ToLowerInvariant();
+    var log = sp.GetRequiredService<ILogger<Program>>();
+    switch (transport)
+    {
+        case "direct":
+            log.LogInformation("Investing transport: direct Socket.IO");
+            return ActivatorUtilities.CreateInstance<InvestingSocketClient>(sp);
+        case "playwright":
+        default:
+            if (transport != "playwright")
+                log.LogWarning("Unknown Investing transport '{T}', falling back to playwright", transport);
+            log.LogInformation("Investing transport: headless Playwright");
+            return ActivatorUtilities.CreateInstance<InvestingPlaywrightClient>(sp);
+    }
+});
 
 // Sinks are registered as IPriceSink; the dispatcher picks them all up via IEnumerable<IPriceSink>.
 builder.Services.AddSingleton<IPriceSink>(sp =>
