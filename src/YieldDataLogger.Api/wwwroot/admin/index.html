@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>YieldDataLogger · Instrument Admin</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">YDL</span>
+    <span class="brand-name">YieldDataLogger</span>
+    <span class="brand-sub">instrument admin</span>
+  </div>
+  <div class="topbar-right">
+    <span id="catalog-count" class="pill">0 instruments</span>
+    <a class="pill pill-link" href="/swagger" target="_blank" rel="noopener">API docs</a>
+  </div>
+</header>
+
+<main class="container">
+
+  <section class="card form-card">
+    <header class="card-header">
+      <h2 id="form-title">Add instrument</h2>
+      <p class="muted">
+        Provide an <b>investing PID</b> (for the investing.com stream),
+        a <b>CNBC symbol</b> (for the CNBC quick-quote poller), or both.
+        Saving an existing <b>canonical symbol</b> updates it in place.
+      </p>
+    </header>
+    <form id="instrument-form" class="form-grid">
+      <label>
+        <span>Canonical symbol <em class="required">*</em></span>
+        <input type="text" id="f-canonical" name="canonicalSymbol" required autocomplete="off"
+               placeholder="e.g. US10Y, DAX, BUND" maxlength="32" />
+      </label>
+      <label>
+        <span>Investing PID</span>
+        <input type="number" id="f-pid" name="investingPid" min="1" step="1" autocomplete="off"
+               placeholder="e.g. 23705" />
+      </label>
+      <label>
+        <span>CNBC symbol</span>
+        <input type="text" id="f-cnbc" name="cnbcSymbol" autocomplete="off"
+               placeholder="e.g. US10Y" maxlength="32" />
+      </label>
+      <label>
+        <span>Category</span>
+        <input type="text" id="f-category" name="category" autocomplete="off"
+               placeholder="e.g. bonds, fx, indices" maxlength="64" list="category-options" />
+        <datalist id="category-options"></datalist>
+      </label>
+      <div class="form-actions">
+        <button type="submit" id="btn-save" class="btn btn-primary">Save</button>
+        <button type="button" id="btn-reset" class="btn btn-ghost">Clear</button>
+        <span id="form-status" class="form-status" role="status"></span>
+      </div>
+    </form>
+  </section>
+
+  <section class="card list-card">
+    <header class="card-header">
+      <div class="list-header">
+        <h2>Catalog</h2>
+        <input type="search" id="filter-input" placeholder="Filter by symbol, pid, cnbc, category…" autocomplete="off" />
+      </div>
+    </header>
+    <div id="list-status" class="form-status" role="status"></div>
+    <div class="table-wrap">
+      <table id="instruments-table">
+        <thead>
+          <tr>
+            <th class="col-symbol">Symbol</th>
+            <th class="col-pid">Investing PID</th>
+            <th class="col-cnbc">CNBC</th>
+            <th class="col-category">Category</th>
+            <th class="col-actions" aria-label="actions"></th>
+          </tr>
+        </thead>
+        <tbody id="instruments-tbody">
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

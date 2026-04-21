@@ -71,8 +71,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// Serve the admin SPA from wwwroot/admin. UseDefaultFiles rewrites /admin/ -> /admin/index.html.
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.MapControllers();
-app.MapGet("/", () => Results.Redirect("/swagger"));
+app.MapGet("/", () => Results.Redirect("/admin/"));
 app.MapGet("/healthz", () => Results.Ok(new { status = "ok", backend, utc = DateTime.UtcNow }));
 
 app.Run();
