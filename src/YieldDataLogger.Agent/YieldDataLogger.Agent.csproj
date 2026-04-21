@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>YieldDataLogger.Agent</RootNamespace>
+    <AssemblyName>YieldDataLogger.Agent</AssemblyName>
+    <UserSecretsId>yielddatalogger-agent</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Generic host + DI + configuration for a console app, matching the Collector. -->
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.1" />
+
+    <!-- SignalR client for .NET - matches the server's @microsoft/signalr 8.x. -->
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Reuse the existing sinks (SqliteSink, ScidSink) and the TickDispatcher for dedup. -->
+    <ProjectReference Include="..\YieldDataLogger.Core\YieldDataLogger.Core.csproj" />
+    <ProjectReference Include="..\YieldDataLogger.Collector\YieldDataLogger.Collector.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Console SDK does not auto-include appsettings; do it explicitly so the generic host loader finds them. -->
+    <None Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

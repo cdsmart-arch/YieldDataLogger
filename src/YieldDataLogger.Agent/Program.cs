@@ -1,0 +1,77 @@
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using YieldDataLogger.Agent.Configuration;
+using YieldDataLogger.Agent.Services;
+using YieldDataLogger.Collector.Pipeline;
+using YieldDataLogger.Core.Abstractions;
+using YieldDataLogger.Core.Logging;
+using YieldDataLogger.Core.Sinks;
+
+// Generic host: same pattern as the Collector so adding a Windows Service hosting step
+// later (Phase 4b) is a single line change (UseWindowsService()).
+// Pin the content root to the exe's directory so appsettings.json is found regardless of
+// where the user launches us from (service control manager, scheduled task, explorer, ...).
+var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
+{
+    Args = args,
+    ContentRootPath = AppContext.BaseDirectory,
+});
+
+builder.Services.Configure<AgentOptions>(builder.Configuration.GetSection(AgentOptions.SectionName));
+
+builder.Services.AddSingleton<TickDispatcher>();
+
+// Sinks: reuse the existing Core implementations. Factory registration keeps the construction
+// dependent on options values (Enabled flag, path resolution) without spreading that logic
+// across types. Disabled sinks are simply not registered, so the dispatcher never sees them.
+builder.Services.AddSingleton<IPriceSink>(sp =>
+{
+    var opts = sp.GetRequiredService<IOptions<AgentOptions>>().Value.Sinks.Sqlite;
+    var logger = sp.GetRequiredService<ILogger<SqliteSink>>();
+    if (!opts.Enabled)
+    {
+        logger.LogInformation("SqliteSink disabled");
+        return new NoopSink("sqlite(disabled)");
+    }
+    var path = Environment.ExpandEnvironmentVariables(opts.Path);
+    Directory.CreateDirectory(path);
+    logger.LogInformation("SqliteSink path: {Path}", path);
+    return new SqliteSink(path, logger);
+});
+
+builder.Services.AddSingleton<IPriceSink>(sp =>
+{
+    var opts = sp.GetRequiredService<IOptions<AgentOptions>>().Value.Sinks.Scid;
+    var logger = sp.GetRequiredService<ILogger<ScidSink>>();
+    if (!opts.Enabled)
+    {
+        logger.LogInformation("ScidSink disabled");
+        return new NoopSink("scid(disabled)");
+    }
+    var path = Environment.ExpandEnvironmentVariables(opts.Path);
+    Directory.CreateDirectory(path);
+    logger.LogInformation("ScidSink path: {Path} allowed={Allowed}", path,
+        opts.AllowedSymbols.Length == 0 ? "(none)" : string.Join(",", opts.AllowedSymbols));
+    return new ScidSink(path, opts.AllowedSymbols, logger);
+});
+
+builder.Services.AddHostedService<TickHubClient>();
+
+// Route durable error logging to the same ProgramData tree the other processes use.
+ErrorLog.DefaultPath = Path.Combine(
+    Environment.ExpandEnvironmentVariables(@"%ProgramData%\YieldDataLogger"),
+    "errors.log");
+
+var host = builder.Build();
+await host.RunAsync();
+
+internal sealed class NoopSink : IPriceSink
+{
+    public string Name { get; }
+    public NoopSink(string name) { Name = name; }
+    public ValueTask WriteAsync(YieldDataLogger.Core.Models.PriceTick tick, CancellationToken ct = default)
+        => ValueTask.CompletedTask;
+}

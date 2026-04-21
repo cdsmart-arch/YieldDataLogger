@@ -31,9 +31,13 @@ src/
 | 2b    | done   | Playwright transport for investing.com stream                      |
 | 3a    | done   | `YieldDataLogger.Api` + Azure SQL backend (SqlPriceSink, SQL fallback) |
 | 3a-bis| done   | Azure Table Storage as primary backend; SQL retained as opt-in fallback |
-| 3b    | next   | SignalR hub + real-time push                                       |
-| 3c    | next   | Identity + JWT auth                                                |
-| 3d    | next   | Container Apps + Azure Table Storage deployment                    |
+| 3b    | done   | SignalR hub + real-time push + Live admin page                     |
+| 3b-bis| done   | Centralised price-change dedup in `TickDispatcher`                 |
+| 4a    | done   | `YieldDataLogger.Agent` console host - SignalR client → local sinks |
+| 4b    | next   | Package Agent as Windows Service + installer                       |
+| 5     | next   | `YieldDataLogger.Manager` tray UX (credentials + symbol picker)    |
+| 3c    | later  | Identity + JWT auth (deferred until end-to-end pipeline is solid)  |
+| 3d    | later  | Container Apps + Azure Table Storage deployment                    |
 
 ## Storage backends
 
@@ -88,6 +92,47 @@ Ticks start landing in the emulated `PriceTicks` table; check them with `GET /ap
 
 For the SQL fallback, install [SQL Server LocalDB](https://learn.microsoft.com/en-us/sql/database-engine/configure-windows/sql-server-express-localdb)
 and flip `Storage:Backend` to `"sql"` in `appsettings.json`.
+
+### Option 3: Run the local Agent against the API
+
+The Agent connects to the API's SignalR hub, subscribes to a configured symbol list, and
+writes every received tick into local per-symbol SQLite files (and optional Sierra `.scid`
+files). This is the same binary that will be wrapped as a Windows Service in phase 4b.
+
+```powershell
+# Terminal 1 - API (also runs the collector + SignalR hub)
+cd src\YieldDataLogger.Api
+dotnet run
+
+# Terminal 2 - Agent on the same PC
+cd src\YieldDataLogger.Agent
+dotnet run
+```
+
+Configuration lives in `src\YieldDataLogger.Agent\appsettings.json`:
+
+```jsonc
+{
+  "Agent": {
+    "HubUrl": "http://localhost:5055/hubs/ticks",
+    "Symbols": [ "US10Y", "DE10Y", "VIX" ],
+    "AuthToken": null,                 // reserved for phase 3c
+    "Sinks": {
+      "Sqlite": { "Enabled": true,  "Path": "%ProgramData%\\YieldDataLogger\\Yields" },
+      "Scid":   { "Enabled": false, "Path": "C:\\SierraChart\\Data", "AllowedSymbols": [] }
+    }
+  }
+}
+```
+
+In `Development` the SQLite path is redirected to `%TEMP%\YieldDataLogger\Yields` so you
+don't need admin rights to see data flow.
+
+To inspect what the Agent has written without installing `sqlite3.exe`:
+
+```powershell
+dotnet run --project tools\SqliteProbe
+```
 
 ## Admin CLI (Collector project)
 
