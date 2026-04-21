@@ -1,500 +1,132 @@
-[
-  {
-    "id": 23685,
-    "name": "DE02Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23688,
-    "name": "DE05Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23693,
-    "name": "DE10Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23696,
-    "name": "DE30Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23665,
-    "name": "GB02Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23668,
-    "name": "GB05Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23673,
-    "name": "GB10Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23677,
-    "name": "GB30Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23870,
-    "name": "AU02Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23873,
-    "name": "AU05Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23878,
-    "name": "AU10Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 1052473,
-    "name": "AU30Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 25270,
-    "name": "CA02Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 25273,
-    "name": "CA05Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 25275,
-    "name": "CA10Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 25277,
-    "name": "CA30Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23770,
-    "name": "FR02Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23773,
-    "name": "FR05Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23778,
-    "name": "FR10Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23781,
-    "name": "FR30Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23798,
-    "name": "ES02Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23801,
-    "name": "ES05Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23806,
-    "name": "ES10Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 100155,
-    "name": "ES30Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23730,
-    "name": "IT02Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23733,
-    "name": "IT05Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23738,
-    "name": "IT10Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 41352,
-    "name": "IT30Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 8827,
-    "name": "DXY",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 7807,
-    "name": "AUS200",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 7801,
-    "name": "UK100",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 7813,
-    "name": "JP225",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 1175153,
-    "name": "US500",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 8981,
-    "name": "SXFC1",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 959396,
-    "name": "RINF",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 8941,
-    "name": "TIP",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 941561,
-    "name": "TIPX",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 44336,
-    "name": "VIX",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 958107,
-    "name": "TYVIX",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 8886,
-    "name": "GILT",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 8895,
-    "name": "BUND",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 8831,
-    "name": "COPPER",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 8910,
-    "name": "PLATINUM",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 8849,
-    "name": "OIL",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 40650,
-    "name": "HYG",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 38405,
-    "name": "IHYG",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 7800,
-    "name": "NQ",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 8826,
-    "name": "DAX",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 40648,
-    "name": "LQD",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 1174944,
-    "name": "RUSSEL",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 1175152,
-    "name": "DOW",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 959208,
-    "name": "NICKEL",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 8862,
-    "name": "NG",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 8916,
-    "name": "SOYBEANS",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 8914,
-    "name": "CATTLE",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 8918,
-    "name": "CORN",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 954867,
-    "name": "RBOB",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 42410,
-    "name": "NZ10Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23722,
-    "name": "CH10Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23686,
-    "name": "DE03Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23690,
-    "name": "DE07Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23691,
-    "name": "DE08Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23692,
-    "name": "DE09Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23695,
-    "name": "DE20Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 8833,
-    "name": "BRENT",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 1560,
-    "name": "CHFUSD",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 1910,
-    "name": "JPYUSD",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 1538,
-    "name": "CADUSD",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 38419,
-    "name": "ITIPS",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 961728,
-    "name": "USDCNH",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 1035793,
-    "name": "BTCUSD",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 1058142,
-    "name": "ETHUSD",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23714,
-    "name": "CH02Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23717,
-    "name": "CH05Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 23725,
-    "name": "CH30Y",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 8917,
-    "name": "US_WHEAT",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 8912,
-    "name": "UK_WHEAT",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 1055977,
-    "name": "_6J",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 1055976,
-    "name": "_6C",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 1177506,
-    "name": "SHIB",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 40654,
-    "name": "TLT",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 13765,
-    "name": "CXPBX",
-    "timestamp": 0,
-    "lastPrice": 0
-  },
-  {
-    "id": 13779,
-    "name": "CXPUX",
-    "timestamp": 0,
-    "lastPrice": 0
-  }
-]
+{
+  "$schema": "instruments.schema.json",
+  "version": 2,
+  "instruments": [
+    { "canonicalSymbol": "US03M",    "cnbcSymbol": "US3M",   "category": "bonds" },
+    { "canonicalSymbol": "US02Y",    "cnbcSymbol": "US2Y",   "category": "bonds" },
+    { "canonicalSymbol": "US05Y",    "cnbcSymbol": "US5Y",   "category": "bonds" },
+    { "canonicalSymbol": "US07Y",    "cnbcSymbol": "US7Y",   "category": "bonds" },
+    { "canonicalSymbol": "US10Y",    "cnbcSymbol": "US10Y",  "category": "bonds" },
+    { "canonicalSymbol": "US20Y",    "cnbcSymbol": "US20Y",  "category": "bonds" },
+    { "canonicalSymbol": "US30Y",    "cnbcSymbol": "US30Y",  "category": "bonds" },
+
+    { "canonicalSymbol": "JP02Y",    "cnbcSymbol": "JP2Y",   "category": "bonds" },
+    { "canonicalSymbol": "JP05Y",    "cnbcSymbol": "JP5Y",   "category": "bonds" },
+    { "canonicalSymbol": "JP10Y",    "cnbcSymbol": "JP10Y",  "category": "bonds" },
+    { "canonicalSymbol": "JP30Y",    "cnbcSymbol": "JP30Y",  "category": "bonds" },
+
+    { "canonicalSymbol": "DE02Y",    "investingPid": 23685,  "category": "bonds" },
+    { "canonicalSymbol": "DE03Y",    "investingPid": 23686,  "category": "bonds" },
+    { "canonicalSymbol": "DE05Y",    "investingPid": 23688,  "category": "bonds" },
+    { "canonicalSymbol": "DE07Y",    "investingPid": 23690,  "category": "bonds" },
+    { "canonicalSymbol": "DE08Y",    "investingPid": 23691,  "category": "bonds" },
+    { "canonicalSymbol": "DE09Y",    "investingPid": 23692,  "category": "bonds" },
+    { "canonicalSymbol": "DE10Y",    "investingPid": 23693,  "category": "bonds" },
+    { "canonicalSymbol": "DE20Y",    "investingPid": 23695,  "category": "bonds" },
+    { "canonicalSymbol": "DE30Y",    "investingPid": 23696,  "category": "bonds" },
+    { "canonicalSymbol": "GB02Y",    "investingPid": 23665,  "category": "bonds" },
+    { "canonicalSymbol": "GB05Y",    "investingPid": 23668,  "category": "bonds" },
+    { "canonicalSymbol": "GB10Y",    "investingPid": 23673,  "category": "bonds" },
+    { "canonicalSymbol": "GB30Y",    "investingPid": 23677,  "category": "bonds" },
+    { "canonicalSymbol": "AU02Y",    "investingPid": 23870,  "category": "bonds" },
+    { "canonicalSymbol": "AU05Y",    "investingPid": 23873,  "category": "bonds" },
+    { "canonicalSymbol": "AU10Y",    "investingPid": 23878,  "category": "bonds" },
+    { "canonicalSymbol": "AU30Y",    "investingPid": 1052473,"category": "bonds" },
+    { "canonicalSymbol": "CA02Y",    "investingPid": 25270,  "category": "bonds" },
+    { "canonicalSymbol": "CA05Y",    "investingPid": 25273,  "category": "bonds" },
+    { "canonicalSymbol": "CA10Y",    "investingPid": 25275,  "category": "bonds" },
+    { "canonicalSymbol": "CA30Y",    "investingPid": 25277,  "category": "bonds" },
+    { "canonicalSymbol": "FR02Y",    "investingPid": 23770,  "category": "bonds" },
+    { "canonicalSymbol": "FR05Y",    "investingPid": 23773,  "category": "bonds" },
+    { "canonicalSymbol": "FR10Y",    "investingPid": 23778,  "category": "bonds" },
+    { "canonicalSymbol": "FR30Y",    "investingPid": 23781,  "category": "bonds" },
+    { "canonicalSymbol": "ES02Y",    "investingPid": 23798,  "category": "bonds" },
+    { "canonicalSymbol": "ES05Y",    "investingPid": 23801,  "category": "bonds" },
+    { "canonicalSymbol": "ES10Y",    "investingPid": 23806,  "category": "bonds" },
+    { "canonicalSymbol": "ES30Y",    "investingPid": 100155, "category": "bonds" },
+    { "canonicalSymbol": "IT02Y",    "investingPid": 23730,  "category": "bonds" },
+    { "canonicalSymbol": "IT05Y",    "investingPid": 23733,  "category": "bonds" },
+    { "canonicalSymbol": "IT10Y",    "investingPid": 23738,  "category": "bonds" },
+    { "canonicalSymbol": "IT30Y",    "investingPid": 41352,  "category": "bonds" },
+    { "canonicalSymbol": "NZ10Y",    "investingPid": 42410,  "category": "bonds" },
+    { "canonicalSymbol": "CH02Y",    "investingPid": 23714,  "category": "bonds" },
+    { "canonicalSymbol": "CH05Y",    "investingPid": 23717,  "category": "bonds" },
+    { "canonicalSymbol": "CH10Y",    "investingPid": 23722,  "category": "bonds" },
+    { "canonicalSymbol": "CH30Y",    "investingPid": 23725,  "category": "bonds" },
+
+    { "canonicalSymbol": "GILT",     "investingPid": 8886,   "category": "bonds" },
+    { "canonicalSymbol": "BUND",     "investingPid": 8895,   "category": "bonds" },
+    { "canonicalSymbol": "TIP",      "investingPid": 8941,   "category": "bonds" },
+    { "canonicalSymbol": "TIPX",     "investingPid": 941561, "category": "bonds" },
+    { "canonicalSymbol": "TLT",      "investingPid": 40654,  "category": "bonds" },
+    { "canonicalSymbol": "LQD",      "investingPid": 40648,  "category": "bonds" },
+    { "canonicalSymbol": "HYG",      "investingPid": 40650,  "category": "bonds" },
+    { "canonicalSymbol": "IHYG",     "investingPid": 38405,  "category": "bonds" },
+    { "canonicalSymbol": "ITIPS",    "investingPid": 38419,  "category": "bonds" },
+    { "canonicalSymbol": "RINF",     "investingPid": 959396, "category": "bonds" },
+    { "canonicalSymbol": "CXPBX",    "investingPid": 13765,  "category": "bonds" },
+    { "canonicalSymbol": "CXPUX",    "investingPid": 13779,  "category": "bonds" },
+
+    { "canonicalSymbol": "DXY",      "investingPid": 8827,   "category": "fx" },
+    { "canonicalSymbol": "EURUSD",   "cnbcSymbol": "EUR=",   "category": "fx" },
+    { "canonicalSymbol": "GBPUSD",   "cnbcSymbol": "GBP=",   "category": "fx" },
+    { "canonicalSymbol": "AUDUSD",   "cnbcSymbol": "AUD=",   "category": "fx" },
+    { "canonicalSymbol": "NZDUSD",   "cnbcSymbol": "NZD=",   "category": "fx" },
+    { "canonicalSymbol": "USDJPY",   "cnbcSymbol": "JPY=",   "category": "fx" },
+    { "canonicalSymbol": "USDCAD",   "cnbcSymbol": "CAD=",   "category": "fx" },
+    { "canonicalSymbol": "USDCHF",   "cnbcSymbol": "CHF=",   "category": "fx" },
+    { "canonicalSymbol": "AUDJPY",   "cnbcSymbol": "AUDJPY", "category": "fx" },
+    { "canonicalSymbol": "GBPJPY",   "cnbcSymbol": "GBPJPY", "category": "fx" },
+    { "canonicalSymbol": "EURGBP",   "cnbcSymbol": "EURGBP", "category": "fx" },
+    { "canonicalSymbol": "CHFUSD",   "investingPid": 1560,   "category": "fx" },
+    { "canonicalSymbol": "JPYUSD",   "investingPid": 1910,   "category": "fx" },
+    { "canonicalSymbol": "CADUSD",   "investingPid": 1538,   "category": "fx" },
+    { "canonicalSymbol": "USDCNH",   "investingPid": 961728, "category": "fx" },
+
+    { "canonicalSymbol": "AUS200",   "investingPid": 7807,   "category": "equity-index" },
+    { "canonicalSymbol": "UK100",    "investingPid": 7801,   "category": "equity-index" },
+    { "canonicalSymbol": "JP225",    "investingPid": 7813,   "category": "equity-index" },
+    { "canonicalSymbol": "US500",    "investingPid": 1175153,"category": "equity-index" },
+    { "canonicalSymbol": "NQ",       "investingPid": 7800,   "category": "equity-index" },
+    { "canonicalSymbol": "DAX",      "investingPid": 8826,   "category": "equity-index" },
+    { "canonicalSymbol": "RUSSEL",   "investingPid": 1174944,"category": "equity-index" },
+    { "canonicalSymbol": "DOW",      "investingPid": 1175152,"category": "equity-index" },
+    { "canonicalSymbol": "SXFC1",    "investingPid": 8981,   "category": "equity-index" },
+
+    { "canonicalSymbol": "XLF",      "cnbcSymbol": "XLF",    "category": "equity-sector" },
+    { "canonicalSymbol": "XLK",      "cnbcSymbol": "XLK",    "category": "equity-sector" },
+    { "canonicalSymbol": "XLU",      "cnbcSymbol": "XLU",    "category": "equity-sector" },
+    { "canonicalSymbol": "XLP",      "cnbcSymbol": "XLP",    "category": "equity-sector" },
+    { "canonicalSymbol": "XLE",      "cnbcSymbol": "XLE",    "category": "equity-sector" },
+    { "canonicalSymbol": "XLY",      "cnbcSymbol": "XLY",    "category": "equity-sector" },
+
+    { "canonicalSymbol": "VIX",      "investingPid": 44336,  "category": "vol" },
+    { "canonicalSymbol": "VVIX",     "cnbcSymbol": "VVIX",   "category": "vol" },
+    { "canonicalSymbol": "TYVIX",    "investingPid": 958107, "category": "vol" },
+    { "canonicalSymbol": "SKEWX",    "cnbcSymbol": ".SKEWX", "category": "vol" },
+    { "canonicalSymbol": "VIXM",     "cnbcSymbol": "VIXM",   "category": "vol" },
+    { "canonicalSymbol": "VIXY",     "cnbcSymbol": "VIXY",   "category": "vol" },
+
+    { "canonicalSymbol": "GOLD",     "cnbcSymbol": "XAU=",   "category": "commodity" },
+    { "canonicalSymbol": "SILVER",   "cnbcSymbol": "XAG=",   "category": "commodity" },
+    { "canonicalSymbol": "COPPER",   "investingPid": 8831,   "category": "commodity" },
+    { "canonicalSymbol": "PLATINUM", "investingPid": 8910,   "category": "commodity" },
+    { "canonicalSymbol": "NICKEL",   "investingPid": 959208, "category": "commodity" },
+    { "canonicalSymbol": "OIL",      "investingPid": 8849,   "category": "commodity" },
+    { "canonicalSymbol": "BRENT",    "investingPid": 8833,   "category": "commodity" },
+    { "canonicalSymbol": "NG",       "investingPid": 8862,   "category": "commodity" },
+    { "canonicalSymbol": "RBOB",     "investingPid": 954867, "category": "commodity" },
+    { "canonicalSymbol": "SOYBEANS", "investingPid": 8916,   "category": "commodity" },
+    { "canonicalSymbol": "CATTLE",   "investingPid": 8914,   "category": "commodity" },
+    { "canonicalSymbol": "CORN",     "investingPid": 8918,   "category": "commodity" },
+    { "canonicalSymbol": "US_WHEAT", "investingPid": 8917,   "category": "commodity" },
+    { "canonicalSymbol": "UK_WHEAT", "investingPid": 8912,   "category": "commodity" },
+
+    { "canonicalSymbol": "BTCUSD",   "investingPid": 1035793,"category": "crypto" },
+    { "canonicalSymbol": "ETHUSD",   "investingPid": 1058142,"category": "crypto" },
+    { "canonicalSymbol": "SHIB",     "investingPid": 1177506,"category": "crypto" },
+
+    { "canonicalSymbol": "_6J",      "investingPid": 1055977,"category": "futures" },
+    { "canonicalSymbol": "_6C",      "investingPid": 1055976,"category": "futures" }
+  ]
+}

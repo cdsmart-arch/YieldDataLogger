@@ -68,8 +68,8 @@ public sealed class InvestingSocketClient : IInvestingStreamClient
 
         _socket.OnConnected += async (_, _) =>
         {
-            _logger.LogInformation("Investing socket connected to {Url}, subscribing to {Count} pids",
-                opts.StreamUrl, pidList.Count);
+            _logger.LogInformation("Investing socket connected to {Url} (EIO={EIO}), subscribing to {Count} pids",
+                opts.StreamUrl, opts.EngineIoVersion, pidList.Count);
             await SubscribePidsAsync(pidList).ConfigureAwait(false);
         };
 
@@ -85,21 +85,44 @@ public sealed class InvestingSocketClient : IInvestingStreamClient
         _socket.OnReconnectAttempt += (_, attempt) =>
             _logger.LogInformation("Investing socket reconnect attempt #{Attempt}", attempt);
 
-        // The bundle emits messages addressed to each pid room. We attach a catch-all handler
-        // to "message" and let the payload-shape detector sort out what is and isn't a tick.
+        _socket.OnReconnectError += (_, err) =>
+            _logger.LogWarning("Investing socket reconnect error: {Error}", err.Message);
+
+        _socket.OnReconnectFailed += (_, _) =>
+            _logger.LogWarning("Investing socket reconnect failed permanently");
+
+        // Catch-all: surface every inbound event name and raw payload so we can see exactly what
+        // the vendor sends (or doesn't) during Phase 2 validation. Above Debug this is noisy but
+        // we only need it on for the first few runs.
         _socket.OnAny(async (eventName, response) =>
         {
             try
             {
-                await HandleSocketMessageAsync(eventName, response, ct).ConfigureAwait(false);
+                var raw = response?.ToString() ?? "";
+                _logger.LogDebug("Investing inbound <{Event}> {Payload}",
+                    eventName,
+                    raw.Length > 500 ? raw[..500] + "..." : raw);
+                await HandleSocketMessageAsync(eventName, response!, ct).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                _logger.LogDebug(ex, "Investing socket message handler threw");
+                _logger.LogDebug(ex, "Investing socket message handler threw on event {Event}", eventName);
             }
         });
 
-        await _socket.ConnectAsync().ConfigureAwait(false);
+        _logger.LogInformation(
+            "Investing socket connecting to {Url} with {Count} subscribed pids...",
+            opts.StreamUrl, pidList.Count);
+        try
+        {
+            await _socket.ConnectAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            // Don't throw out of StartAsync — the reconnect loop will keep retrying and we
+            // want the host to stay up so CNBC keeps collecting.
+            _logger.LogWarning(ex, "Initial Investing socket connect failed; will keep retrying");
+        }
     }
 
     public async Task StopAsync(CancellationToken ct)
@@ -178,6 +201,6 @@ public sealed class InvestingSocketClient : IInvestingStreamClient
         if (handler is not null)
             await handler(tick, ct).ConfigureAwait(false);
 
-        _logger.LogTrace("Investing tick {Event} {Symbol} {Price}", eventName, instr.CanonicalSymbol, price);
+        _logger.LogDebug("Investing tick {Event} {Symbol} {Price}", eventName, instr.CanonicalSymbol, price);
     }
 }

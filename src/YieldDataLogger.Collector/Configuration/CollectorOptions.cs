@@ -46,9 +46,6 @@ public sealed class CnbcOptions
     public string BaseUrl { get; set; } =
         "http://quote.cnbc.com/quote-html-webservice/quote.htm" +
         "?partnerId=2&requestMethod=quick&exthrs=1&noform=1&fund=1&output=json";
-
-    /// <summary>Pipe-joined into the CNBC request's "symbols" parameter.</summary>
-    public string[] Symbols { get; set; } = Array.Empty<string>();
 }
 
 public sealed class InvestingOptions

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json.Linq;
 using YieldDataLogger.Collector.Configuration;
+using YieldDataLogger.Collector.Instruments;
 using YieldDataLogger.Collector.Pipeline;
 using YieldDataLogger.Core;
 using YieldDataLogger.Core.Models;
@@ -19,17 +20,20 @@ public sealed class CnbcPoller : BackgroundService
     private readonly IOptionsMonitor<CollectorOptions> _options;
     private readonly TickDispatcher _dispatcher;
     private readonly IHttpClientFactory _httpFactory;
+    private readonly InstrumentCatalog _catalog;
     private readonly ILogger<CnbcPoller> _logger;
 
     public CnbcPoller(
         IOptionsMonitor<CollectorOptions> options,
         TickDispatcher dispatcher,
         IHttpClientFactory httpFactory,
+        InstrumentCatalog catalog,
         ILogger<CnbcPoller> logger)
     {
         _options = options;
         _dispatcher = dispatcher;
         _httpFactory = httpFactory;
+        _catalog = catalog;
         _logger = logger;
     }
 
@@ -42,15 +46,16 @@ public sealed class CnbcPoller : BackgroundService
         }
 
         var opts = _options.CurrentValue.Cnbc;
-        if (opts.Symbols.Length == 0)
+        var symbols = _catalog.CnbcSymbols.ToArray();
+        if (symbols.Length == 0)
         {
-            _logger.LogWarning("CNBC poller enabled but no symbols configured.");
+            _logger.LogWarning("CNBC poller enabled but no instruments in the catalog carry a cnbcSymbol.");
             return;
         }
 
-        var requestUrl = $"{opts.BaseUrl}&symbols={string.Join("|", opts.Symbols)}";
+        var requestUrl = $"{opts.BaseUrl}&symbols={string.Join("|", symbols)}";
         _logger.LogInformation("CNBC poller started: {SymbolCount} symbols every {IntervalMs} ms",
-            opts.Symbols.Length, opts.PollIntervalMs);
+            symbols.Length, opts.PollIntervalMs);
 
         var http = _httpFactory.CreateClient("cnbc");
         while (!stoppingToken.IsCancellationRequested)
