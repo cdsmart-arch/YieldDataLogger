@@ -20,8 +20,15 @@ public sealed class SubscriptionManager
     private readonly ILogger<SubscriptionManager> _logger;
     private readonly object _gate = new();
     private HashSet<string> _current = new(StringComparer.Ordinal);
+    private int _historyDays;
 
     public event EventHandler<SubscriptionChange>? Changed;
+
+    /// <summary>
+    /// Days of history to backfill, as configured in the Manager's Symbols window.
+    /// Returns 0 when the user has never set it (agent falls back to appsettings.json default).
+    /// </summary>
+    public int HistoryDays { get { lock (_gate) return _historyDays; } }
 
     public SubscriptionManager(
         IOptions<AgentOptions> options,
@@ -36,7 +43,9 @@ public sealed class SubscriptionManager
         if (loaded is not null)
         {
             initial = loaded.Symbols;
-            _logger.LogInformation("Loaded {Count} subscriptions from {Path}.", loaded.Symbols.Count, store.FilePath);
+            _historyDays = loaded.HistoryDays;
+            _logger.LogInformation("Loaded {Count} subscriptions from {Path} (historyDays={Days}).",
+                loaded.Symbols.Count, store.FilePath, _historyDays);
         }
         else
         {
@@ -46,7 +55,7 @@ public sealed class SubscriptionManager
             _current = Normalize(initial).ToHashSet(StringComparer.Ordinal);
             try
             {
-                store.Save(_current);
+                store.Save(_current, historyDays: 0);
                 _logger.LogInformation("Seeded {Path} with {Count} symbols from appsettings.", store.FilePath, _current.Count);
             }
             catch (Exception ex)
@@ -73,13 +82,14 @@ public sealed class SubscriptionManager
     /// the caller's responsibility - when the Manager writes the file the watcher invokes
     /// this, and when the Agent's seed path calls the store directly, no persistence is needed.
     /// </summary>
-    public void UpdateTo(IEnumerable<string> symbols)
+    public void UpdateTo(IEnumerable<string> symbols, int historyDays = 0)
     {
         var next = Normalize(symbols).ToHashSet(StringComparer.Ordinal);
 
         SubscriptionChange change;
         lock (_gate)
         {
+            _historyDays = historyDays;
             var added   = next.Except(_current).ToArray();
             var removed = _current.Except(next).ToArray();
             if (added.Length == 0 && removed.Length == 0) return;

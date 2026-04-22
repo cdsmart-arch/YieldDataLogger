@@ -34,11 +34,12 @@ internal static class SubscriptionsFile
     }
 
     /// <summary>Atomic write via tmp + rename so the Agent's FileSystemWatcher never sees a partial file.</summary>
-    public static void Save(string path, IEnumerable<string> symbols)
+    public static void Save(string path, IEnumerable<string> symbols, int historyDays = 0)
     {
         var dto = new AgentSubscriptions
         {
             Symbols      = symbols.ToArray(),
+            HistoryDays  = historyDays,
             UpdatedAtUtc = DateTime.UtcNow,
         };
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);

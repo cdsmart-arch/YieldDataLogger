@@ -18,6 +18,13 @@ public sealed record AgentSubscriptions
     /// <summary>Canonical symbol list the Agent should subscribe to.</summary>
     public IReadOnlyList<string> Symbols { get; init; } = Array.Empty<string>();
 
+    /// <summary>
+    /// How many days of history to backfill from Azure on a fresh install or after a gap.
+    /// 0 means "use the agent default from appsettings.json" (currently 30 days).
+    /// Set by the Manager's Symbols window so end-users never have to edit a config file.
+    /// </summary>
+    public int HistoryDays { get; init; } = 0;
+
     /// <summary>UTC timestamp of the most recent edit. Useful for diagnostics / "last saved".</summary>
     public DateTime UpdatedAtUtc { get; init; }
 }

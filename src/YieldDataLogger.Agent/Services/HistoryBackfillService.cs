@@ -137,8 +137,12 @@ public sealed class HistoryBackfillService : BackgroundService
 
         // On a fresh install latestTs == 0, so cap it to HistoryDays ago.
         // For existing files latestTs is recent, so it will be > the cap and wins.
+        // Manager-configured value (subscriptions.json) takes precedence over appsettings default.
+        var historyDays = _subscriptions.HistoryDays > 0
+            ? _subscriptions.HistoryDays
+            : _options.HistoryDays;
         var historyFloor = DateTimeOffset.UtcNow
-            .AddDays(-_options.HistoryDays)
+            .AddDays(-historyDays)
             .ToUnixTimeSeconds();
 
         var inserted = 0;

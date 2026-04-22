@@ -78,7 +78,7 @@ public sealed class SubscriptionWatcherService : BackgroundService
                     _logger.LogWarning("Subscriptions file disappeared or failed to parse; ignoring event.");
                     continue;
                 }
-                _manager.UpdateTo(loaded.Symbols);
+                _manager.UpdateTo(loaded.Symbols, loaded.HistoryDays);
             }
             catch (Exception ex)
             {

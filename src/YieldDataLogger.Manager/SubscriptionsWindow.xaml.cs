@@ -21,6 +21,7 @@ public partial class SubscriptionsWindow : Window
     private readonly ObservableCollection<InstrumentRow> _rows = new();
     private readonly HashSet<string> _initialSubs = new(StringComparer.Ordinal);
     private ICollectionView? _view;
+    private int _initialHistoryDays = 30;
 
     internal SubscriptionsWindow(ManagerConfig config, string apiBaseUrl)
     {
@@ -51,7 +52,12 @@ public partial class SubscriptionsWindow : Window
             var current = SubscriptionsFile.Load(_config.SubscriptionsFilePath);
             _initialSubs.Clear();
             if (current is not null)
+            {
                 foreach (var s in current.Symbols) _initialSubs.Add(s.Trim().ToUpperInvariant());
+                // Pre-populate HistoryDays; fall back to 30 if never set.
+                _initialHistoryDays = current.HistoryDays > 0 ? current.HistoryDays : 30;
+            }
+            HistoryDaysBox.Text = _initialHistoryDays.ToString();
 
             _rows.Clear();
             foreach (var i in instruments)
@@ -97,12 +103,20 @@ public partial class SubscriptionsWindow : Window
         var currentSet = _rows.Where(r => r.Subscribed).Select(r => r.CanonicalSymbol).ToHashSet(StringComparer.Ordinal);
         if (currentSet.Count != _initialSubs.Count) return true;
         foreach (var s in currentSet) if (!_initialSubs.Contains(s)) return true;
+        if (ParseHistoryDays() != _initialHistoryDays) return true;
         return false;
+    }
+
+    private int ParseHistoryDays()
+    {
+        return int.TryParse(HistoryDaysBox?.Text?.Trim(), out var d) && d > 0 ? d : _initialHistoryDays;
     }
 
     // -- Event handlers --------------------------------------------------------
 
     private void OnSearchChanged(object sender, TextChangedEventArgs e) => _view?.Refresh();
+
+    private void OnHistoryDaysChanged(object sender, TextChangedEventArgs e) => UpdateStatus();
 
     private bool FilterPredicate(object o)
     {
@@ -135,10 +149,12 @@ public partial class SubscriptionsWindow : Window
     {
         try
         {
-            var symbols = _rows.Where(r => r.Subscribed).Select(r => r.CanonicalSymbol);
-            SubscriptionsFile.Save(_config.SubscriptionsFilePath, symbols);
+            var symbols    = _rows.Where(r => r.Subscribed).Select(r => r.CanonicalSymbol);
+            var historyDays = ParseHistoryDays();
+            SubscriptionsFile.Save(_config.SubscriptionsFilePath, symbols, historyDays);
             _initialSubs.Clear();
             foreach (var s in _rows.Where(r => r.Subscribed)) _initialSubs.Add(s.CanonicalSymbol);
+            _initialHistoryDays = historyDays;
             StatusText.Text = $"Saved. Agent will pick up changes within ~1 second.";
             ApplyBtn.IsEnabled = false;
         }

@@ -113,6 +113,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -127,8 +128,28 @@
             </StackPanel>
         </Border>
 
+        <!-- History days setting -->
+        <Border Grid.Row="1" Background="#0D1117" Padding="20,10" BorderBrush="#21262D" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="Days of history to keep locally:"
+                           Foreground="{StaticResource MutedBrush}" FontSize="12"
+                           VerticalAlignment="Center" Margin="0,0,12,0"/>
+                <TextBox x:Name="HistoryDaysBox"
+                         Width="64" Padding="6,4"
+                         VerticalAlignment="Center"
+                         ToolTip="How many days of price history the Agent backfills from Azure on first run (or after Clear History). Default: 30."
+                         TextChanged="OnHistoryDaysChanged"/>
+                <TextBlock Text="days"
+                           Foreground="{StaticResource MutedBrush}" FontSize="12"
+                           VerticalAlignment="Center" Margin="8,0,0,0"/>
+                <TextBlock Text="(controls how far back the Agent fetches from Azure on install or after 'Clear History')"
+                           Foreground="#555E6B" FontSize="11"
+                           VerticalAlignment="Center" Margin="16,0,0,0"/>
+            </StackPanel>
+        </Border>
+
         <!-- Toolbar: search + select all / none -->
-        <Grid Grid.Row="1" Margin="20,12,20,6">
+        <Grid Grid.Row="2" Margin="20,12,20,6">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -142,7 +163,7 @@
         </Grid>
 
         <!-- Grid of instruments -->
-        <DataGrid Grid.Row="2" x:Name="Grid" Margin="20,6,20,12"
+        <DataGrid Grid.Row="3" x:Name="Grid" Margin="20,6,20,12"
                   IsReadOnly="False">
             <DataGrid.Columns>
                 <DataGridTemplateColumn Header="" Width="44">
@@ -162,7 +183,7 @@
         </DataGrid>
 
         <!-- Footer: counters + Apply / Cancel -->
-        <Border Grid.Row="3" Background="{StaticResource PanelBrush}" Padding="20,12" BorderBrush="#21262D" BorderThickness="0,1,0,0">
+        <Border Grid.Row="4" Background="{StaticResource PanelBrush}" Padding="20,12" BorderBrush="#21262D" BorderThickness="0,1,0,0">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
