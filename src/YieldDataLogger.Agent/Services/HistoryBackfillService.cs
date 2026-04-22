@@ -196,8 +196,12 @@ public sealed class HistoryBackfillService : BackgroundService
     }
 
     /// <summary>
-    /// Creates the PriceData table if absent, and adds a UNIQUE index on TIMESTAMP so
-    /// INSERT OR IGNORE silently skips duplicate timestamps (makes backfill idempotent).
+    /// Creates the PriceData table if absent, and ensures a UNIQUE index on TIMESTAMP exists
+    /// so INSERT OR IGNORE silently skips duplicate timestamps (makes backfill idempotent).
+    ///
+    /// On databases written by the original install (before the unique index was introduced)
+    /// there may already be duplicate TIMESTAMP rows.  We remove those duplicates first —
+    /// keeping the row with the lowest rowid — so the index creation always succeeds.
     /// </summary>
     private static void EnsureTable(string file)
     {
@@ -206,14 +210,33 @@ public sealed class HistoryBackfillService : BackgroundService
         if (!File.Exists(file)) SQLiteConnection.CreateFile(file);
 
         using var cn = Open(file);
+
         using (var cmd = new SQLiteCommand(
             "CREATE TABLE IF NOT EXISTS PriceData (TIMESTAMP real, CLOSE real)", cn))
             cmd.ExecuteNonQuery();
 
-        // Add the unique index if it isn't there yet (safe on existing tables).
+        // Check whether the unique index already exists.
+        bool indexExists;
         using (var cmd = new SQLiteCommand(
-            "CREATE UNIQUE INDEX IF NOT EXISTS idx_timestamp ON PriceData (TIMESTAMP)", cn))
-            cmd.ExecuteNonQuery();
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_timestamp'", cn))
+            indexExists = Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+
+        if (!indexExists)
+        {
+            // The original install wrote rows without a unique constraint so duplicates may
+            // exist.  Delete them (keep the earliest rowid per timestamp) before adding the
+            // index, otherwise SQLite will refuse to create it.
+            using (var cmd = new SQLiteCommand(
+                @"DELETE FROM PriceData
+                  WHERE rowid NOT IN (
+                      SELECT MIN(rowid) FROM PriceData GROUP BY TIMESTAMP
+                  )", cn))
+                cmd.ExecuteNonQuery();
+
+            using (var cmd = new SQLiteCommand(
+                "CREATE UNIQUE INDEX idx_timestamp ON PriceData (TIMESTAMP)", cn))
+                cmd.ExecuteNonQuery();
+        }
     }
 
     /// <summary>
