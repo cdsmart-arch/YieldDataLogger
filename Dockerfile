@@ -22,22 +22,18 @@ RUN dotnet publish src/YieldDataLogger.Api/YieldDataLogger.Api.csproj \
 
 # ---------------------------------------------------------------------------
 # Stage 2: install Playwright browsers
-# Using the sdk image (not runtime) because playwright install needs dotnet CLI.
-# We copy only the final publish output, then run playwright install, then
-# in stage 3 we copy both artifacts into the slim runtime image.
+# Microsoft.Playwright publishes a playwright.sh launcher into the app output dir.
+# We just run that to download the Chromium binary. OS-level dependencies are
+# installed separately in the runtime stage via apt-get, so --with-deps is not
+# needed here and we avoid the ambiguous system 'install' command.
 # ---------------------------------------------------------------------------
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS playwright-install
 WORKDIR /app
 COPY --from=build /app/publish .
 
-# playwright install looks for the driver on $PATH; it ships with the NuGet package.
-# The --with-deps flag also installs the OS packages Chromium needs (libglib, etc.).
-RUN dotnet tool install --global Microsoft.Playwright.CLI --version 1.44.0 2>/dev/null || true
-ENV PATH="$PATH:/root/.dotnet/tools"
-# The real entry is the playwright script shipped alongside the package.
-RUN pwsh -Command "playwright install --with-deps chromium" 2>/dev/null \
- || bash -c "$(find /root/.nuget /app -name 'playwright.sh' -type f 2>/dev/null | head -1) install --with-deps chromium" \
- || dotnet exec $(find /app -name 'Microsoft.Playwright.CLI.dll' 2>/dev/null | head -1) install --with-deps chromium
+RUN chmod +x ./playwright.sh && \
+    PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright \
+    ./playwright.sh install chromium
 
 # ---------------------------------------------------------------------------
 # Stage 3: runtime image
