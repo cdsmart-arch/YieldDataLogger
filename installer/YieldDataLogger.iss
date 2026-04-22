@@ -92,14 +92,17 @@ Root: HKCU; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Run"; \
 ; ---------------------------------------------------------------------------
 [Run]
 ; Stop any existing service before we overwrite the exe (upgrade scenario).
-Filename: "sc.exe"; Parameters: "stop ""{#ServiceName}""";  Flags: runhidden waituntilterminated; StatusMsg: "Stopping existing service..."; Check: ServiceExists
-Filename: "sc.exe"; Parameters: "delete ""{#ServiceName}"""; Flags: runhidden waituntilterminated; StatusMsg: "Removing old service..."; Check: ServiceExists
+; Stop + delete the existing service on upgrades, then pause briefly so the
+; SCM releases the handle before we re-create it.
+Filename: "sc.exe";      Parameters: "stop ""{#ServiceName}""";   Flags: runhidden waituntilterminated; StatusMsg: "Stopping existing service...";  Check: ServiceExists
+Filename: "sc.exe";      Parameters: "delete ""{#ServiceName}"""; Flags: runhidden waituntilterminated; StatusMsg: "Removing old service...";         Check: ServiceExists
+Filename: "ping.exe";    Parameters: "127.0.0.1 -n 3 -w 1000";   Flags: runhidden waituntilterminated; StatusMsg: "Waiting for SCM to release...";   Check: ServiceExists
 
 ; Register the new service.
 Filename: "sc.exe"; \
   Parameters: "create ""{#ServiceName}"" binPath= """"""{app}\Agent\{#AgentExe}"""""" start= auto DisplayName= ""YieldDataLogger Agent"""; \
   Flags: runhidden waituntilterminated; \
-  StatusMsg: "Registering background service..."; \
+  StatusMsg: "Registering Agent service..."; \
   Components: agent
 
 ; Set a friendly description (shows in services.msc).

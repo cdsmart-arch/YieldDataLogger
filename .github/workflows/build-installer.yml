@@ -49,6 +49,47 @@ jobs:
         shell: pwsh
 
       # -----------------------------------------------------------------------
+      # Code signing – eliminates the Windows Defender SmartScreen warning.
+      # Requires two repository secrets to be configured:
+      #   CODE_SIGNING_PFX      – base64-encoded .pfx certificate file
+      #   CODE_SIGNING_PASSWORD – password for the .pfx file
+      #
+      # To encode your certificate:
+      #   PowerShell: [Convert]::ToBase64String([IO.File]::ReadAllBytes("cert.pfx")) | clip
+      #
+      # Affordable certificates:
+      #   - Certum Open Source Code Signing (free for open-source projects)
+      #   - Sectigo / DigiCert OV (~$100/yr)  – removes SmartScreen immediately
+      #   - DigiCert EV (~$300/yr)             – full SmartScreen trust, recommended
+      #
+      # If neither secret is set this step is skipped and the unsigned installer
+      # is uploaded as-is (SmartScreen will warn; click "More info" → "Run anyway").
+      # -----------------------------------------------------------------------
+      - name: Sign installer (requires CODE_SIGNING_PFX + CODE_SIGNING_PASSWORD secrets)
+        if: ${{ secrets.CODE_SIGNING_PFX != '' }}
+        shell: pwsh
+        env:
+          PFX_BASE64:  ${{ secrets.CODE_SIGNING_PFX }}
+          PFX_PASS:    ${{ secrets.CODE_SIGNING_PASSWORD }}
+        run: |
+          $pfxPath = "$env:TEMP\codesign.pfx"
+          [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:PFX_BASE64))
+
+          $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
+                       Sort-Object FullName -Descending | Select-Object -First 1).FullName
+          if (-not $signtool) { throw "signtool.exe not found" }
+
+          & $signtool sign `
+            /f  $pfxPath `
+            /p  $env:PFX_PASS `
+            /tr http://timestamp.digicert.com `
+            /td sha256 /fd sha256 `
+            (Get-Item "dist\installer\YieldDataLogger-Setup-*.exe").FullName
+
+          Remove-Item $pfxPath -Force
+          Write-Host "Installer signed successfully."
+
+      # -----------------------------------------------------------------------
       # Upload the installer exe so it can be downloaded from the Actions tab.
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
