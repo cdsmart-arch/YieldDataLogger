@@ -132,8 +132,8 @@ Filename: "taskkill.exe"; Parameters: "/f /im ""{#ManagerExe}"""; Flags: runhidd
 ; Pascal script helpers
 ; ---------------------------------------------------------------------------
 [Code]
-{ Returns True if the YieldDataLogger.Agent service already exists so the
-  [Run] stop/delete steps are only executed on upgrades, not fresh installs. }
+// Returns True if the YieldDataLogger.Agent service already exists so the
+// stop/delete steps in the Run section are only executed on upgrades.
 function ServiceExists(): Boolean;
 var
   ResultCode: Integer;
