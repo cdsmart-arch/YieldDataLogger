@@ -77,26 +77,16 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       # -------------------------------------------------------------------
-      # Deploy a new revision. Container Apps keeps old revisions for rollback.
-      # Environment variables that aren't secrets are set here directly.
-      # The storage connection string is passed via --secret so it never appears
-      # in the activity log.
+      # Deploy a new revision by updating the container image via the Azure CLI.
+      # The Container App already has ACR pull credentials and secrets configured
+      # (done once by infra/azure-bootstrap.ps1), so we only need to point it at
+      # the new SHA-tagged image.  Container Apps keeps old revisions for rollback.
       - name: Deploy to Azure Container Apps
-        uses: azure/container-apps-deploy-action@v1
-        with:
-          appSourcePath: ${{ github.workspace }}
-          acrName: ${{ secrets.ACR_LOGIN_SERVER }}
-          acrUsername: ${{ secrets.ACR_USERNAME }}
-          acrPassword: ${{ secrets.ACR_PASSWORD }}
-          containerAppName: ${{ secrets.CONTAINERAPPS_APP_NAME }}
-          resourceGroup: ${{ secrets.AZURE_RESOURCE_GROUP }}
-          imageToDeploy: ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-          environmentVariables: |
-            ASPNETCORE_ENVIRONMENT=Production
-            Storage__Backend=table
-            Storage__Tables__ConnectionString=secretref:storage-connection-string
-            Storage__Tables__Enabled=true
-            Storage__Sql__Enabled=false
+        run: |
+          az containerapp update \
+            --name "${{ secrets.CONTAINERAPPS_APP_NAME }}" \
+            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \
+            --image "${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
 
       # -------------------------------------------------------------------
       - name: Verify deployment
