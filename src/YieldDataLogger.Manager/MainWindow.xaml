@@ -86,23 +86,32 @@
                                    Foreground="#E6E6E6"
                                    Margin="10,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
-                    <TextBlock x:Name="HubText"
+                    <TextBlock x:Name="StatusDetailText"
                                Text="(waiting for status file)"
                                Foreground="{StaticResource MutedBrush}" FontSize="12"
                                Margin="24,4,0,0"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" HorizontalAlignment="Right">
-                    <Button x:Name="SymbolsButton" Content="Symbols..."
-                            Click="OnSymbolsClick"
-                            HorizontalAlignment="Right" Margin="0,0,0,6"
-                            Background="#21262D" Foreground="#E6E6E6"
-                            BorderBrush="#30363D" BorderThickness="1"
-                            Padding="12,4" FontSize="12" FontWeight="SemiBold"
-                            ToolTip="Choose which instruments this Agent subscribes to"/>
-                    <TextBlock x:Name="UptimeText" Text="Uptime: -" Foreground="{StaticResource MutedBrush}" FontSize="12" HorizontalAlignment="Right"/>
-                    <TextBlock x:Name="TicksText" Text="Ticks: -" Foreground="{StaticResource MutedBrush}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0"/>
-                    <TextBlock x:Name="LastTickText" Text="Last tick: -" Foreground="{StaticResource MutedBrush}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,6">
+                        <Button x:Name="ClearHistoryButton" Content="Clear History…"
+                                Click="OnClearHistoryClick"
+                                HorizontalAlignment="Right" Margin="0,0,8,0"
+                                Background="#21262D" Foreground="#8B949E"
+                                BorderBrush="#30363D" BorderThickness="1"
+                                Padding="12,4" FontSize="12" FontWeight="SemiBold"
+                                ToolTip="Delete all locally stored price history (SQLite files)"/>
+                        <Button x:Name="SymbolsButton" Content="Symbols…"
+                                Click="OnSymbolsClick"
+                                HorizontalAlignment="Right"
+                                Background="#21262D" Foreground="#E6E6E6"
+                                BorderBrush="#30363D" BorderThickness="1"
+                                Padding="12,4" FontSize="12" FontWeight="SemiBold"
+                                ToolTip="Choose which instruments this Agent subscribes to"/>
+                    </StackPanel>
+                    <TextBlock x:Name="UptimeText"    Text="Uptime: -"     Foreground="{StaticResource MutedBrush}" FontSize="12" HorizontalAlignment="Right"/>
+                    <TextBlock x:Name="TicksText"     Text="Ticks: -"      Foreground="{StaticResource MutedBrush}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                    <TextBlock x:Name="LastTickText"  Text="Last tick: -"  Foreground="{StaticResource MutedBrush}" FontSize="12" HorizontalAlignment="Right" Margin="0,4,0,0"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -138,10 +147,7 @@
 
         <!-- Footer -->
         <Border Grid.Row="2" Background="{StaticResource PanelBrush}" Padding="20,10" BorderBrush="#21262D" BorderThickness="0,1,0,0">
-            <StackPanel>
-                <TextBlock x:Name="FooterText1" Foreground="{StaticResource MutedBrush}" FontSize="11"/>
-                <TextBlock x:Name="FooterText2" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,2,0,0"/>
-            </StackPanel>
+            <TextBlock x:Name="FooterText" Foreground="{StaticResource MutedBrush}" FontSize="11"/>
         </Border>
     </Grid>
 </Window>

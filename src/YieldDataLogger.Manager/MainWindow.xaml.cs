@@ -1,9 +1,11 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Threading;
 using Brush = System.Windows.Media.Brush;
+using MessageBox = System.Windows.MessageBox;
 
 namespace YieldDataLogger.Manager;
 
@@ -80,16 +82,58 @@ public partial class MainWindow : Window
         win.ShowDialog();
     }
 
+    private void OnClearHistoryClick(object sender, RoutedEventArgs e)
+    {
+        var sqliteDir = _latestState?.Status?.SqliteSinkPath;
+        if (string.IsNullOrWhiteSpace(sqliteDir) || !Directory.Exists(sqliteDir))
+        {
+            MessageBox.Show("No local history folder found.", "Clear History",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var files = Directory.GetFiles(sqliteDir, "*.sqlite");
+        if (files.Length == 0)
+        {
+            MessageBox.Show("No history files to delete.", "Clear History",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var result = MessageBox.Show(
+            $"This will permanently delete {files.Length} history file(s) in:\n{sqliteDir}\n\nThis cannot be undone. Continue?",
+            "Clear History",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.No);
+
+        if (result != MessageBoxResult.Yes) return;
+
+        var deleted = 0;
+        var errors  = 0;
+        foreach (var file in files)
+        {
+            try   { File.Delete(file); deleted++; }
+            catch { errors++; }
+        }
+
+        var msg = errors == 0
+            ? $"Deleted {deleted} file(s). History will be rebuilt from Azure on the next Agent start."
+            : $"Deleted {deleted} file(s). {errors} file(s) could not be deleted (they may be in use).";
+
+        MessageBox.Show(msg, "Clear History", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
     private void UpdateHeader(ManagerState state)
     {
         if (!state.AgentRunning)
         {
-            StateDot.Fill   = (Brush)FindResource("DisconnectedBrush");
-            StateText.Text  = "AGENT NOT RUNNING";
-            HubText.Text    = state.ErrorMessage ?? state.StaleReason ?? "no recent status update";
-            UptimeText.Text = "Uptime: -";
-            TicksText.Text  = "Ticks: -";
-            LastTickText.Text = "Last tick: -";
+            StateDot.Fill       = (Brush)FindResource("DisconnectedBrush");
+            StateText.Text      = "AGENT NOT RUNNING";
+            StatusDetailText.Text = state.ErrorMessage ?? state.StaleReason ?? "No recent status update";
+            UptimeText.Text     = "Uptime: -";
+            TicksText.Text      = "Ticks: -";
+            LastTickText.Text   = "Last tick: -";
             return;
         }
 
@@ -104,13 +148,15 @@ public partial class MainWindow : Window
                 ? (Brush)FindResource("ReconnectingBrush")
                 : (Brush)FindResource("DisconnectedBrush");
 
-        StateText.Text = connected
-            ? "CONNECTED"
+        StateText.Text = connected ? "CONNECTED"
             : reconnecting ? "RECONNECTING" : "DISCONNECTED";
 
-        HubText.Text = string.IsNullOrWhiteSpace(s.ConnectionId)
-            ? $"Hub: {s.HubUrl}"
-            : $"Hub: {s.HubUrl}   id: {s.ConnectionId}";
+        // Friendly status line — no internal URLs or IDs.
+        StatusDetailText.Text = connected
+            ? $"Live data streaming  •  {s.SubscribedSymbols?.Count ?? 0} instrument(s)"
+            : !string.IsNullOrWhiteSpace(s.LastError)
+                ? $"Last error: {s.LastError}"
+                : "Waiting for connection…";
 
         var uptime = DateTime.UtcNow - s.StartedAtUtc;
         UptimeText.Text = $"Uptime: {FormatDuration(uptime)}   host: {s.MachineName}";
@@ -130,10 +176,9 @@ public partial class MainWindow : Window
 
     private void UpdateFooter(ManagerState state)
     {
-        FooterText1.Text = $"Status file: {state.StatusFilePath}";
-        FooterText2.Text = state.Status is null
-            ? "(waiting for first status file to land)"
-            : $"SQLite: {(string.IsNullOrEmpty(state.Status.SqliteSinkPath) ? "(disabled)" : state.Status.SqliteSinkPath)}" +
+        FooterText.Text = state.Status is null
+            ? "Waiting for agent to start…"
+            : $"History: {(string.IsNullOrEmpty(state.Status.SqliteSinkPath) ? "(disabled)" : state.Status.SqliteSinkPath)}" +
               (string.IsNullOrEmpty(state.Status.ScidSinkPath) ? "" : $"   SCID: {state.Status.ScidSinkPath}");
     }
 
