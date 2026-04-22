@@ -44,7 +44,14 @@ public static class SymbolTranslator
     public static string FromCnbc(string cnbcSymbol)
     {
         if (string.IsNullOrEmpty(cnbcSymbol)) return cnbcSymbol;
-        var s = CnbcEquivalents.TryGetValue(cnbcSymbol, out var mapped) ? mapped : cnbcSymbol;
+
+        // Explicit dictionary handles short-codes (EUR= → EURUSD) and renames (UK10Y → GB10Y).
+        if (CnbcEquivalents.TryGetValue(cnbcSymbol, out var mapped))
+            return mapped.Replace(".", string.Empty);
+
+        // Cross-pair FX symbols (e.g. AUDJPY=, GBPJPY=) are stored by CNBC with a trailing =
+        // but our canonical symbol has none — strip it here so dispatching works correctly.
+        var s = cnbcSymbol.TrimEnd('=');
         return s.Replace(".", string.Empty);
     }
 }
