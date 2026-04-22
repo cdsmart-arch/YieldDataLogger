@@ -2,6 +2,7 @@
 [Bb]in/
 [Oo]bj/
 [Oo]ut/
+dist/
 [Dd]ebug/
 [Rr]elease/
 x64/
