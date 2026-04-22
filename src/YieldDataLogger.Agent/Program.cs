@@ -10,8 +10,6 @@ using YieldDataLogger.Core.Abstractions;
 using YieldDataLogger.Core.Logging;
 using YieldDataLogger.Core.Sinks;
 
-// Generic host: same pattern as the Collector so adding a Windows Service hosting step
-// later (Phase 4b) is a single line change (UseWindowsService()).
 // Pin the content root to the exe's directory so appsettings.json is found regardless of
 // where the user launches us from (service control manager, scheduled task, explorer, ...).
 var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
@@ -19,6 +17,11 @@ var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
     Args = args,
     ContentRootPath = AppContext.BaseDirectory,
 });
+
+// Registers the Windows Service lifetime so the process responds to SCM start/stop signals.
+// No-op when running interactively (dotnet run, double-click), so the same binary works for
+// both development and the installed Windows Service.
+builder.Services.AddWindowsService(opts => opts.ServiceName = "YieldDataLogger.Agent");
 
 builder.Services.Configure<AgentOptions>(builder.Configuration.GetSection(AgentOptions.SectionName));
 
