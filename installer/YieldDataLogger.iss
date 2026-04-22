@@ -110,6 +110,15 @@ Filename: "sc.exe"; \
   Parameters: "description ""{#ServiceName}"" ""Connects to YieldDataLogger Azure hub and writes live price ticks to local files."""; \
   Flags: runhidden waituntilterminated; Components: agent
 
+; Grant BUILTIN\Users permission to start and stop the service so the Manager
+; tray app works without requiring admin rights.
+; SDDL breakdown of the last ACE (A;;RPWPCR;;;BU):
+;   RP = SERVICE_START, WP = SERVICE_STOP, CR = SERVICE_USER_DEFINED_CONTROL
+;   BU = BUILTIN\Users (all local accounts)
+Filename: "sc.exe"; \
+  Parameters: "sdset ""{#ServiceName}"" ""D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCLCSWRPWPDTLOCRRC;;;IU)(A;;CCLCSWRPWPDTLOCRRC;;;SU)(A;;RPWPCR;;;BU)"""; \
+  Flags: runhidden waituntilterminated; Components: agent
+
 ; Start the service.
 Filename: "sc.exe"; Parameters: "start ""{#ServiceName}"""; \
   Flags: runhidden waituntilterminated; \

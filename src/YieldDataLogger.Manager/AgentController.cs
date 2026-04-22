@@ -32,11 +32,13 @@ internal sealed class AgentController
 
                 svc.Start();
                 svc.WaitForStatus(ServiceControllerStatus.Running, TimeSpan.FromSeconds(10));
-                return (true, $"Agent service started.");
+                return (true, "Agent service started.");
             }
-            catch (Exception ex)
+            catch
             {
-                return (false, $"Failed to start service: {ex.Message}");
+                // Insufficient privileges (service installed before sdset was added).
+                // Retry via UAC-elevated sc.exe – user will see a Windows consent prompt.
+                return RunElevated("sc.exe", $"start \"{ServiceName}\"");
             }
         }
 
@@ -83,9 +85,10 @@ internal sealed class AgentController
                 svc.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(10));
                 return (true, "Agent service stopped.");
             }
-            catch (Exception ex)
+            catch
             {
-                return (false, $"Failed to stop service: {ex.Message}");
+                // Insufficient privileges – elevate via UAC.
+                return RunElevated("sc.exe", $"stop \"{ServiceName}\"");
             }
         }
 
@@ -106,6 +109,37 @@ internal sealed class AgentController
         catch (Exception ex)
         {
             return (false, $"Failed to stop Agent (pid {status.Pid}): {ex.Message}");
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Elevated helper
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Runs <paramref name="exe"/> as administrator via a UAC ShellExecute "runas"
+    /// verb.  Used as a fallback when the Manager lacks permission to control the
+    /// Windows Service directly (common on machines where the service was installed
+    /// before the <c>sc sdset</c> permission grant was added to the installer).
+    /// </summary>
+    private static (bool Ok, string Message) RunElevated(string exe, string args)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo(exe, args)
+            {
+                Verb            = "runas",   // triggers UAC consent prompt
+                UseShellExecute = true,
+                CreateNoWindow  = true,
+                WindowStyle     = ProcessWindowStyle.Hidden,
+            };
+            var proc = Process.Start(psi);
+            proc?.WaitForExit(20_000);
+            return (true, "Agent service command sent (elevated).");
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Could not elevate: {ex.Message}");
         }
     }
 
