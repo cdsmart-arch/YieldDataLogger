@@ -25,6 +25,7 @@
   <ItemGroup>
     <!-- SQLite - Manager reads the per-symbol files written by the Agent's SqliteSink. -->
     <PackageReference Include="System.Data.SQLite.Core" Version="1.0.119" />
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="8.0.0" />
   </ItemGroup>
 
 </Project>
