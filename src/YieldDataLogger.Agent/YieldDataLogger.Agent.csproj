@@ -8,6 +8,10 @@
     <RootNamespace>YieldDataLogger.Agent</RootNamespace>
     <AssemblyName>YieldDataLogger.Agent</AssemblyName>
     <UserSecretsId>yielddatalogger-agent</UserSecretsId>
+    <!-- Collector is a referenced project and also ships appsettings.json; suppress the
+         duplicate output file error so self-contained publish succeeds. The Agent's own
+         appsettings files win because they are listed last in the ItemGroup below. -->
+    <ErrorOnDuplicatePublishOutputFiles>false</ErrorOnDuplicatePublishOutputFiles>
   </PropertyGroup>
 
   <ItemGroup>
