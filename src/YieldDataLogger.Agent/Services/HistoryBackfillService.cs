@@ -53,6 +53,12 @@ public sealed class HistoryBackfillService : BackgroundService
             return;
         }
 
+        if (_options.HistoryDays <= 0)
+        {
+            _logger.LogInformation("HistoryDays=0 – history backfill disabled.");
+            return;
+        }
+
         var apiBase = DeriveApiBase();
         if (string.IsNullOrWhiteSpace(apiBase))
         {
@@ -107,9 +113,16 @@ public sealed class HistoryBackfillService : BackgroundService
         var file = Path.Combine(sqlitePath, $"{symbol}.sqlite");
         EnsureTable(file);
 
-        var latestTs  = GetLatestTimestamp(file);
-        var inserted  = 0;
-        var fromTs    = latestTs;
+        var latestTs = GetLatestTimestamp(file);
+
+        // On a fresh install latestTs == 0, so cap it to HistoryDays ago.
+        // For existing files latestTs is recent, so it will be > the cap and wins.
+        var historyFloor = DateTimeOffset.UtcNow
+            .AddDays(-_options.HistoryDays)
+            .ToUnixTimeSeconds();
+
+        var inserted = 0;
+        var fromTs   = Math.Max(latestTs, historyFloor);
         int fetched;
 
         do

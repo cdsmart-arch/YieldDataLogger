@@ -35,6 +35,14 @@ public sealed class AgentOptions
     public string SubscriptionsPath { get; set; } =
         "%ProgramData%\\YieldDataLogger\\Agent\\subscriptions.json";
 
+    /// <summary>
+    /// How many days of history to pull from Azure on a fresh install (no local data yet).
+    /// Once a local SQLite file exists the Agent always backfills from the last stored
+    /// timestamp, so offline gaps are always filled regardless of this value.
+    /// Set to 0 to disable backfill entirely.
+    /// </summary>
+    public int HistoryDays { get; set; } = 30;
+
     /// <summary>Optional bearer token attached to the hub connection. Empty = no auth (current default).</summary>
     public string? AuthToken { get; set; }
 
