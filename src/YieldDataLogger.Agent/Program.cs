@@ -80,6 +80,13 @@ builder.Services.AddSingleton<TickHubClient>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<TickHubClient>());
 builder.Services.AddHostedService<StatusWriterService>();
 
+// HttpClient used by the history backfill service.
+builder.Services.AddHttpClient("backfill");
+
+// History backfill: runs after each hub connect, pulls missing ticks from the REST API,
+// and bulk-inserts them into the local SQLite files so NinjaTrader always has full history.
+builder.Services.AddHostedService<HistoryBackfillService>();
+
 // Route durable error logging to the same ProgramData tree the other processes use.
 ErrorLog.DefaultPath = Path.Combine(
     Environment.ExpandEnvironmentVariables(@"%ProgramData%\YieldDataLogger"),
