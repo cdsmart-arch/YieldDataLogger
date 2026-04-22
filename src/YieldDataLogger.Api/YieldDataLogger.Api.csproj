@@ -7,20 +7,21 @@
     <RootNamespace>YieldDataLogger.Api</RootNamespace>
     <UserSecretsId>yielddatalogger-api</UserSecretsId>
     <LangVersion>latest</LangVersion>
+    <!-- When publishing, the Collector project (referenced here) and the Api project both
+         have an appsettings.json. Tell the SDK to keep the last copy (the Api's) rather
+         than treating the collision as an error. The Api's settings are the ones we want
+         in the published output; the Collector's are for standalone dev runs only. -->
+    <ErrorOnDuplicatePublishOutputFiles>false</ErrorOnDuplicatePublishOutputFiles>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Azure Table Storage is the primary backend: cheap, scales to billions of rows with no tuning. -->
-    <PackageReference Include="Azure.Data.Tables" Version="12.9.1" />
-
-    <!-- SQL Server / Azure SQL kept as an optional fallback backend. EF Core stays, but only
-         wires up when Storage:Backend = "sql" in config. -->
+    <PackageReference Include="Azure.Data.Tables" Version="12.11.0" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.7" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.10" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.10">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
 
