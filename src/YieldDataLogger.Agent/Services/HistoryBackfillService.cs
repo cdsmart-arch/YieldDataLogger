@@ -72,14 +72,26 @@ public sealed class HistoryBackfillService : BackgroundService
         while (!stoppingToken.IsCancellationRequested)
         {
             // Wait until the hub reports Connected.
-            await WaitForConnectionAsync(stoppingToken).ConfigureAwait(false);
+            try { await WaitForConnectionAsync(stoppingToken).ConfigureAwait(false); }
+            catch (OperationCanceledException) { return; }
+
             if (stoppingToken.IsCancellationRequested) return;
 
-            await RunBackfillAsync(stoppingToken).ConfigureAwait(false);
+            try
+            {
+                await RunBackfillAsync(stoppingToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) { return; }
+            catch (Exception ex)
+            {
+                // Never let a backfill crash take down the service.
+                _logger.LogError(ex, "Unexpected error during history backfill – will retry on next reconnect.");
+            }
 
             // After backfill, wait until the connection drops so we can backfill the gap
             // on the next reconnect.
-            await WaitForDisconnectAsync(stoppingToken).ConfigureAwait(false);
+            try { await WaitForDisconnectAsync(stoppingToken).ConfigureAwait(false); }
+            catch (OperationCanceledException) { return; }
         }
     }
 
@@ -100,7 +112,15 @@ public sealed class HistoryBackfillService : BackgroundService
         foreach (var symbol in symbols)
         {
             if (ct.IsCancellationRequested) break;
-            totalInserted += await BackfillSymbolAsync(sqlitePath, symbol, ct).ConfigureAwait(false);
+            try
+            {
+                totalInserted += await BackfillSymbolAsync(sqlitePath, symbol, ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) { break; }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Backfill failed for symbol {Symbol} – skipping.", symbol);
+            }
         }
 
         _logger.LogInformation(
