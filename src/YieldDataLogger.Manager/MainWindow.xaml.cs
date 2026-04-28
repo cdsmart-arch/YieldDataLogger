@@ -60,6 +60,7 @@ public partial class MainWindow : Window
         StateUpdated?.Invoke(this, state);
 
         UpdateHeader(state);
+        UpdateBackfillBanner(state);
         UpdateFooter(state);
         UpdateGrid(state);
 
@@ -171,6 +172,20 @@ public partial class MainWindow : Window
         else
         {
             LastTickText.Text = "Last tick: (none yet)";
+        }
+    }
+
+    private void UpdateBackfillBanner(ManagerState state)
+    {
+        var msg = state.Status?.BackfillStatus;
+        if (string.IsNullOrWhiteSpace(msg))
+        {
+            BackfillBanner.Visibility = Visibility.Collapsed;
+        }
+        else
+        {
+            BackfillText.Text         = msg;
+            BackfillBanner.Visibility = Visibility.Visible;
         }
     }
 

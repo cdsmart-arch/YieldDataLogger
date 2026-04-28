@@ -65,6 +65,7 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -116,8 +117,25 @@
             </Grid>
         </Border>
 
+        <!-- Backfill progress banner — only visible while the Agent is backfilling -->
+        <Border x:Name="BackfillBanner" Grid.Row="1"
+                Background="#1C2128" Padding="20,8"
+                BorderBrush="#D29922" BorderThickness="0,0,0,2"
+                Visibility="Collapsed">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="⬇" Foreground="#D29922" FontSize="13"
+                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBlock x:Name="BackfillText"
+                           Foreground="#E3B341" FontSize="12" FontWeight="SemiBold"
+                           VerticalAlignment="Center"/>
+                <TextBlock Text="  — chart gaps will fill automatically once complete."
+                           Foreground="#8B949E" FontSize="12"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
         <!-- Main table -->
-        <DataGrid Grid.Row="1" x:Name="SymbolsGrid" Margin="0">
+        <DataGrid Grid.Row="2" x:Name="SymbolsGrid" Margin="0">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="SYMBOL"   Binding="{Binding Symbol}"        Width="120"/>
                 <DataGridTextColumn Header="PRICE"    Binding="{Binding PriceDisplay}"  Width="120">
@@ -146,7 +164,7 @@
         </DataGrid>
 
         <!-- Footer -->
-        <Border Grid.Row="2" Background="{StaticResource PanelBrush}" Padding="20,10" BorderBrush="#21262D" BorderThickness="0,1,0,0">
+        <Border Grid.Row="3" Background="{StaticResource PanelBrush}" Padding="20,10" BorderBrush="#21262D" BorderThickness="0,1,0,0">
             <TextBlock x:Name="FooterText" Foreground="{StaticResource MutedBrush}" FontSize="11"/>
         </Border>
     </Grid>

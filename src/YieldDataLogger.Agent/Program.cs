@@ -78,6 +78,11 @@ builder.Services.AddHostedService<SubscriptionWatcherService>();
 // to read live connection state without running a second copy.
 builder.Services.AddSingleton<TickHubClient>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<TickHubClient>());
+
+// BackfillTracker: shared between HistoryBackfillService (writes progress) and
+// StatusWriterService (reads it into the status.json the Manager polls).
+builder.Services.AddSingleton<BackfillTracker>();
+
 builder.Services.AddHostedService<StatusWriterService>();
 
 // HttpClient used by the history backfill service.

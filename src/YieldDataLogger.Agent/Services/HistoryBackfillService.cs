@@ -28,6 +28,7 @@ public sealed class HistoryBackfillService : BackgroundService
     private readonly AgentOptions _options;
     private readonly TickHubClient _hubClient;
     private readonly SubscriptionManager _subscriptions;
+    private readonly BackfillTracker _tracker;
     private readonly HttpClient _http;
     private readonly ILogger<HistoryBackfillService> _logger;
 
@@ -35,14 +36,16 @@ public sealed class HistoryBackfillService : BackgroundService
         IOptions<AgentOptions> options,
         TickHubClient hubClient,
         SubscriptionManager subscriptions,
+        BackfillTracker tracker,
         IHttpClientFactory httpFactory,
         ILogger<HistoryBackfillService> logger)
     {
-        _options     = options.Value;
-        _hubClient   = hubClient;
+        _options       = options.Value;
+        _hubClient     = hubClient;
         _subscriptions = subscriptions;
-        _http        = httpFactory.CreateClient("backfill");
-        _logger      = logger;
+        _tracker       = tracker;
+        _http          = httpFactory.CreateClient("backfill");
+        _logger        = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -110,6 +113,8 @@ public sealed class HistoryBackfillService : BackgroundService
         _logger.LogInformation(
             "History backfill starting for {Count} symbol(s).", symbols.Count);
 
+        _tracker.Update($"Backfill starting – {symbols.Count} symbol(s)…");
+
         var totalInserted = 0;
 
         for (int idx = 0; idx < symbols.Count; idx++)
@@ -117,6 +122,8 @@ public sealed class HistoryBackfillService : BackgroundService
             if (ct.IsCancellationRequested) break;
 
             var symbol = symbols[idx];
+            _tracker.Update($"Backfilling {symbol} ({idx + 1} of {symbols.Count})…");
+
             try
             {
                 totalInserted += await BackfillSymbolAsync(sqlitePath, symbol, ct).ConfigureAwait(false);
@@ -140,6 +147,7 @@ public sealed class HistoryBackfillService : BackgroundService
             }
         }
 
+        _tracker.Clear();
         _logger.LogInformation(
             "History backfill complete. {Total} new tick(s) written.", totalInserted);
     }
@@ -162,16 +170,22 @@ public sealed class HistoryBackfillService : BackgroundService
             .AddDays(-historyDays)
             .ToUnixTimeSeconds();
 
-        var inserted = 0;
-        var fromTs   = Math.Max(latestTs, historyFloor);
+        var inserted  = 0;
+        var fromTs    = Math.Max(latestTs, historyFloor);
+        double? toTs  = null;   // upper bound shrinks each page, walking backwards in time
         int fetched;
 
         do
         {
+            // Build URL: always include fromTs (lower/older bound).
+            // After the first page toTs narrows the window so we don't re-fetch the same rows.
+            // The API returns newest-first, so each subsequent page goes further back in time.
+            var url = $"/api/ticks/{Uri.EscapeDataString(symbol)}?fromTs={fromTs:F0}&take={PageSize}";
+            if (toTs.HasValue) url += $"&toTs={toTs.Value:F0}";
+
             List<TickDto>? page;
             try
             {
-                var url = $"/api/ticks/{Uri.EscapeDataString(symbol)}?fromTs={fromTs:F0}&take={PageSize}";
                 page = await _http.GetFromJsonAsync<List<TickDto>>(url, ct).ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -184,10 +198,15 @@ public sealed class HistoryBackfillService : BackgroundService
 
             fetched   = page.Count;
             inserted += BulkInsert(file, page);
-            fromTs    = page.Max(t => t.TsUnix) + 1;   // advance cursor past what we just got
+
+            // Walk the cursor backwards: set the upper bound to just before the oldest
+            // tick we just received.  On the next loop we request the same fromTs but a
+            // tighter toTs, collecting the next older slice until we reach a page < PageSize.
+            toTs = page.Min(t => t.TsUnix) - 1;
 
             if (fetched == PageSize)
-                _logger.LogDebug("Backfill {Symbol}: fetched page of {Count}, continuing...", symbol, fetched);
+                _logger.LogDebug("Backfill {Symbol}: page={Count}, toTs={ToTs:F0}, continuing...",
+                    symbol, fetched, toTs);
         }
         while (fetched == PageSize && !ct.IsCancellationRequested);
 

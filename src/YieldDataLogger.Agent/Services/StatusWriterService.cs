@@ -26,6 +26,7 @@ public sealed class StatusWriterService : BackgroundService
     private readonly AgentOptions _options;
     private readonly TickHubClient _hub;
     private readonly TickDispatcher _dispatcher;
+    private readonly BackfillTracker _backfillTracker;
     private readonly ILogger<StatusWriterService> _logger;
     private readonly DateTime _startedAtUtc = DateTime.UtcNow;
     private readonly int _pid = Environment.ProcessId;
@@ -34,12 +35,14 @@ public sealed class StatusWriterService : BackgroundService
         IOptions<AgentOptions> options,
         TickHubClient hub,
         TickDispatcher dispatcher,
+        BackfillTracker backfillTracker,
         ILogger<StatusWriterService> logger)
     {
-        _options = options.Value;
-        _hub = hub;
-        _dispatcher = dispatcher;
-        _logger = logger;
+        _options         = options.Value;
+        _hub             = hub;
+        _dispatcher      = dispatcher;
+        _backfillTracker = backfillTracker;
+        _logger          = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -95,6 +98,7 @@ public sealed class StatusWriterService : BackgroundService
                     SqliteSinkPath    = sqliteSinkPath,
                     ScidSinkPath      = scidSinkPath,
                     LastError         = _hub.LastError,
+                    BackfillStatus    = _backfillTracker.Status,
                 };
 
                 await WriteAtomicAsync(path, snapshot, stoppingToken);

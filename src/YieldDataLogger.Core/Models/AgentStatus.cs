@@ -69,4 +69,10 @@ public sealed record AgentStatus
 
     /// <summary>Free-form last error message, if any (e.g. hub unreachable). Cleared on successful reconnect.</summary>
     public string? LastError { get; init; }
+
+    /// <summary>
+    /// Non-null while a history backfill is running. Contains a human-readable
+    /// progress string such as "Backfilling US10Y (3 of 20)…". Null when idle.
+    /// </summary>
+    public string? BackfillStatus { get; init; }
 }
