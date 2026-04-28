@@ -69,6 +69,9 @@ public sealed class HistoryBackfillService : BackgroundService
         _http.BaseAddress = new Uri(apiBase);
         _http.Timeout     = TimeSpan.FromMinutes(5);
 
+        // Run at below-normal priority so the backfill never starves the rest of the system.
+        System.Threading.Thread.CurrentThread.Priority = System.Threading.ThreadPriority.BelowNormal;
+
         while (!stoppingToken.IsCancellationRequested)
         {
             // Wait until the hub reports Connected.
@@ -109,9 +112,11 @@ public sealed class HistoryBackfillService : BackgroundService
 
         var totalInserted = 0;
 
-        foreach (var symbol in symbols)
+        for (int idx = 0; idx < symbols.Count; idx++)
         {
             if (ct.IsCancellationRequested) break;
+
+            var symbol = symbols[idx];
             try
             {
                 totalInserted += await BackfillSymbolAsync(sqlitePath, symbol, ct).ConfigureAwait(false);
@@ -120,6 +125,14 @@ public sealed class HistoryBackfillService : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Backfill failed for symbol {Symbol} – skipping.", symbol);
+            }
+
+            // Breathe between symbols so disk/CPU/network aren't fully saturated.
+            // The delay is skipped after the last symbol and when only one symbol is subscribed.
+            if (_options.BackfillDelayMs > 0 && idx < symbols.Count - 1)
+            {
+                try { await Task.Delay(_options.BackfillDelayMs, ct).ConfigureAwait(false); }
+                catch (OperationCanceledException) { break; }
             }
         }
 
@@ -275,6 +288,19 @@ public sealed class HistoryBackfillService : BackgroundService
     {
         var cn = new SQLiteConnection($"Data Source={file};Version=3;");
         cn.Open();
+        // WAL is persisted in the file header – set once and all future connections inherit it.
+        // SYNCHRONOUS=NORMAL and the cache settings are connection-level so we set them every time.
+        foreach (var sql in new[]
+        {
+            "PRAGMA journal_mode = WAL",
+            "PRAGMA synchronous  = NORMAL",
+            "PRAGMA cache_size   = -4000",
+            "PRAGMA temp_store   = MEMORY",
+        })
+        {
+            using var p = new SQLiteCommand(sql, cn);
+            p.ExecuteNonQuery();
+        }
         return cn;
     }
 

@@ -43,6 +43,15 @@ public sealed class AgentOptions
     /// </summary>
     public int HistoryDays { get; set; } = 30;
 
+    /// <summary>
+    /// Milliseconds to pause between backfilling consecutive symbols.
+    /// A short pause prevents the backfill from saturating disk I/O, CPU, and the Azure
+    /// API simultaneously when many symbols are subscribed.  Set to 0 to disable.
+    /// Default 300 ms keeps the download spread over a few minutes rather than one
+    /// intense burst that makes the machine feel sluggish.
+    /// </summary>
+    public int BackfillDelayMs { get; set; } = 300;
+
     /// <summary>Optional bearer token attached to the hub connection. Empty = no auth (current default).</summary>
     public string? AuthToken { get; set; }
 

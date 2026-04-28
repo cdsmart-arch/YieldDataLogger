@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Data.SQLite;
 using Microsoft.Extensions.Logging;
 using YieldDataLogger.Core.Abstractions;
@@ -9,34 +10,48 @@ namespace YieldDataLogger.Core.Sinks;
 /// <summary>
 /// Writes each tick to a per-instrument SQLite file ({symbol}.sqlite) matching the
 /// schema used by the original YieldLoggerUI app: PriceData(TIMESTAMP real, CLOSE real).
-/// Kept compatible on purpose so the forthcoming NT8 indicator and any other legacy
-/// reader can consume the same files without changes.
+/// Kept compatible on purpose so the NT8 indicator and any other legacy reader can
+/// consume the same files without changes.
 ///
-/// Dedup is handled centrally by the TickDispatcher, so this sink only ever sees ticks
-/// whose price differs from the previous one for that symbol.
+/// Performance notes
+/// -----------------
+/// • One SQLiteConnection is opened per symbol and kept alive for the process lifetime.
+///   This eliminates the open/close overhead that would otherwise occur on every tick.
+/// • WAL journal mode is enabled on first open (persisted in the file header so all
+///   future connections, including the NT8 indicator, also benefit automatically).
+/// • SYNCHRONOUS=NORMAL removes the full-fsync on every write while still protecting
+///   against data loss on OS crashes (not power-loss, which is acceptable here).
+/// • A 4 MB page cache reduces read-back I/O during index lookups.
+///
+/// Dedup is handled centrally by TickDispatcher, so this sink only ever sees ticks
+/// whose price has actually changed.
 /// </summary>
-public sealed class SqliteSink : IPriceSink
+public sealed class SqliteSink : IPriceSink, IDisposable
 {
     private readonly string _directory;
     private readonly ILogger<SqliteSink> _logger;
+    private readonly ConcurrentDictionary<string, SQLiteConnection> _connections = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object _initLock = new();
 
     public string Name => "sqlite";
 
     public SqliteSink(string directory, ILogger<SqliteSink> logger)
     {
         _directory = directory ?? throw new ArgumentNullException(nameof(directory));
-        _logger = logger;
+        _logger    = logger;
         Directory.CreateDirectory(_directory);
     }
 
     public ValueTask WriteAsync(PriceTick tick, CancellationToken ct = default)
     {
-        var file = Path.Combine(_directory, $"{tick.CanonicalSymbol}.sqlite");
         try
         {
-            EnsureFile(file);
-            EnsureTable(file);
-            InsertRow(file, tick.UnixTimeSeconds, tick.Price);
+            var cn = GetOrOpenConnection(tick.CanonicalSymbol);
+            using var cmd = cn.CreateCommand();
+            cmd.CommandText = "INSERT OR IGNORE INTO PriceData (TIMESTAMP, CLOSE) VALUES (@TS, @CLOSE)";
+            cmd.Parameters.AddWithValue("@TS",    tick.UnixTimeSeconds);
+            cmd.Parameters.AddWithValue("@CLOSE", tick.Price);
+            cmd.ExecuteNonQuery();
         }
         catch (Exception ex)
         {
@@ -47,32 +62,64 @@ public sealed class SqliteSink : IPriceSink
         return ValueTask.CompletedTask;
     }
 
-    private static void EnsureFile(string path)
+    /// <summary>
+    /// Returns the cached connection for <paramref name="symbol"/>, opening and
+    /// initialising it on first call (thread-safe via double-checked lock).
+    /// </summary>
+    private SQLiteConnection GetOrOpenConnection(string symbol)
     {
-        var dir = Path.GetDirectoryName(path);
-        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-            Directory.CreateDirectory(dir);
-        if (!File.Exists(path))
-            SQLiteConnection.CreateFile(path);
+        if (_connections.TryGetValue(symbol, out var existing))
+            return existing;
+
+        lock (_initLock)
+        {
+            if (_connections.TryGetValue(symbol, out existing))
+                return existing;
+
+            var file = Path.Combine(_directory, symbol + ".sqlite");
+            if (!File.Exists(file)) SQLiteConnection.CreateFile(file);
+
+            var cn = new SQLiteConnection($"Data Source={file};Version=3;");
+            cn.Open();
+            ApplyPragmas(cn);
+
+            using (var cmd = cn.CreateCommand())
+            {
+                cmd.CommandText = "CREATE TABLE IF NOT EXISTS PriceData (TIMESTAMP real, CLOSE real)";
+                cmd.ExecuteNonQuery();
+            }
+
+            _connections[symbol] = cn;
+            _logger.LogDebug("SqliteSink opened connection for {Symbol} (WAL mode)", symbol);
+            return cn;
+        }
     }
 
-    private static void EnsureTable(string path)
+    /// <summary>
+    /// Sets the recommended PRAGMAs on a freshly-opened connection.
+    /// WAL is persisted in the file header; SYNCHRONOUS and cache_size are connection-level.
+    /// </summary>
+    private static void ApplyPragmas(SQLiteConnection cn)
     {
-        using var cn = new SQLiteConnection($"Data Source={path};Version=3;");
-        cn.Open();
-        using var cmd = new SQLiteCommand(
-            "CREATE TABLE IF NOT EXISTS PriceData (TIMESTAMP real, CLOSE real)", cn);
-        cmd.ExecuteNonQuery();
+        foreach (var sql in new[]
+        {
+            "PRAGMA journal_mode = WAL",       // persisted – much faster concurrent writes
+            "PRAGMA synchronous  = NORMAL",    // per-connection – safe & fast (no full fsync per write)
+            "PRAGMA cache_size   = -4000",     // 4 MB page cache
+            "PRAGMA temp_store   = MEMORY",    // temp tables/indexes in RAM
+        })
+        {
+            using var cmd = new SQLiteCommand(sql, cn);
+            cmd.ExecuteNonQuery();
+        }
     }
 
-    private static void InsertRow(string path, double timestamp, double price)
+    public void Dispose()
     {
-        using var cn = new SQLiteConnection($"Data Source={path};Version=3;");
-        cn.Open();
-        using var cmd = new SQLiteCommand(
-            "INSERT INTO PriceData (TIMESTAMP, CLOSE) VALUES (@TIMESTAMP, @CLOSE)", cn);
-        cmd.Parameters.AddWithValue("@TIMESTAMP", timestamp);
-        cmd.Parameters.AddWithValue("@CLOSE", price);
-        cmd.ExecuteNonQuery();
+        foreach (var cn in _connections.Values)
+        {
+            try { cn.Dispose(); } catch { /* ignore shutdown errors */ }
+        }
+        _connections.Clear();
     }
 }
