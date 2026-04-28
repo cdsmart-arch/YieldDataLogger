@@ -72,8 +72,12 @@ namespace NinjaTrader.NinjaScript.Indicators.CSI
         private System.Windows.Controls.ToolBar    _ownerToolBar;
         private bool _visible = true;
 
-        // Background refresh for realtime
-        private System.Threading.Timer _timer;
+        // Realtime update via FileSystemWatcher (fires on .sqlite-wal writes too)
+        // A debounce timer coalesces bursts of rapid writes (e.g. RTY sub-second ticks)
+        // so we don't thrash SQLite reads on every single tick.
+        private FileSystemWatcher _watcher;
+        private System.Threading.Timer _debounce;
+        private System.Threading.Timer _fallbackTimer; // belt-and-suspenders poll every 30s
 
         // ── lifecycle ─────────────────────────────────────────────────────────
         protected override void OnStateChange()
@@ -125,17 +129,50 @@ namespace NinjaTrader.NinjaScript.Indicators.CSI
             }
             else if (State == State.Realtime)
             {
-                var interval = TimeSpan.FromSeconds(Math.Max(1, RefreshSeconds));
-                _timer = new System.Threading.Timer(_ =>
+                var dir = Environment.ExpandEnvironmentVariables(DataPath ?? string.Empty);
+
+                // Debounce timer: fires 250 ms after the last file-change event.
+                // Using Timeout.Infinite so it only fires once per burst.
+                _debounce = new System.Threading.Timer(_ =>
                 {
                     LoadAllData();
                     ChartControl?.Dispatcher.InvokeAsync(() => ChartControl.InvalidateVisual());
-                }, null, interval, interval);
+                }, null, System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
+
+                // In WAL mode the Agent writes ticks to SYMBOL.sqlite-wal, not the main
+                // .sqlite file.  Watch *.sqlite* so both the main file and the WAL sidecar
+                // trigger a reload.
+                if (Directory.Exists(dir))
+                {
+                    _watcher = new FileSystemWatcher(dir)
+                    {
+                        Filter            = "*.sqlite*",
+                        NotifyFilter      = NotifyFilters.LastWrite | NotifyFilters.Size,
+                        EnableRaisingEvents = true,
+                    };
+                    _watcher.Changed += OnDataFileChanged;
+                    _watcher.Created += OnDataFileChanged;
+                }
+
+                // Belt-and-suspenders: reload every 30 s even if the watcher misfires.
+                _fallbackTimer = new System.Threading.Timer(_ =>
+                {
+                    LoadAllData();
+                    ChartControl?.Dispatcher.InvokeAsync(() => ChartControl.InvalidateVisual());
+                }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
             }
             else if (State == State.Terminated)
             {
-                _timer?.Dispose();
-                _timer = null;
+                _debounce?.Dispose();     _debounce     = null;
+                _fallbackTimer?.Dispose(); _fallbackTimer = null;
+                if (_watcher != null)
+                {
+                    _watcher.EnableRaisingEvents = false;
+                    _watcher.Changed -= OnDataFileChanged;
+                    _watcher.Created -= OnDataFileChanged;
+                    _watcher.Dispose();
+                    _watcher = null;
+                }
                 ReleaseSharpDx();
 
                 if (ChartControl != null && _toggleBtn != null)
@@ -232,6 +269,23 @@ namespace NinjaTrader.NinjaScript.Indicators.CSI
 
         public override void OnRenderTargetChanged() => ReleaseSharpDx();
 
+        // ── realtime file-change handler ──────────────────────────────────────
+        private void OnDataFileChanged(object sender, FileSystemEventArgs e)
+        {
+            // Only react to files belonging to our subscribed symbols.
+            // e.Name might be "US10Y.sqlite" or "US10Y.sqlite-wal" – strip the extension
+            // down to the bare symbol name for comparison.
+            var name = Path.GetFileNameWithoutExtension(
+                         Path.GetFileNameWithoutExtension(e.Name ?? string.Empty))
+                        .ToUpperInvariant();
+
+            if (!_symbols.Any(s => string.Equals(s, name, StringComparison.OrdinalIgnoreCase)))
+                return;
+
+            // Reset the debounce window – fire 250 ms after the last change event.
+            _debounce?.Change(250, System.Threading.Timeout.Infinite);
+        }
+
         // ── data loading ──────────────────────────────────────────────────────
         private List<string> CollectSymbols()
         {
@@ -266,8 +320,13 @@ namespace NinjaTrader.NinjaScript.Indicators.CSI
         private static SortedList<long, double> ReadSqlite(string file)
         {
             var result = new SortedList<long, double>();
+            // Do NOT use "Read Only=True" here.  In WAL mode SQLite needs to access the
+            // .sqlite-shm shared-memory file to build a consistent read snapshot.  Some
+            // versions of System.Data.SQLite refuse to create that file in read-only mode,
+            // which makes the connection see stale data from the main file only and miss
+            // all ticks that are still in the .sqlite-wal sidecar.
             using var cn = new System.Data.SQLite.SQLiteConnection(
-                $"Data Source={file};Version=3;Read Only=True;");
+                $"Data Source={file};Version=3;");
             cn.Open();
             using var cmd = new System.Data.SQLite.SQLiteCommand(
                 "SELECT TIMESTAMP, CLOSE FROM PriceData ORDER BY TIMESTAMP ASC", cn);
