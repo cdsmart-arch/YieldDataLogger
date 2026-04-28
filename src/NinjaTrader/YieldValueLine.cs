@@ -146,7 +146,7 @@ namespace NinjaTrader.NinjaScript.Indicators.CSI
                 {
                     _watcher = new FileSystemWatcher(dir)
                     {
-                        Filter            = "*.sqlite*",
+                        Filter            = "*.sqlite*",   // catches .sqlite AND .sqlite-wal
                         NotifyFilter      = NotifyFilters.LastWrite | NotifyFilters.Size,
                         EnableRaisingEvents = true,
                     };
