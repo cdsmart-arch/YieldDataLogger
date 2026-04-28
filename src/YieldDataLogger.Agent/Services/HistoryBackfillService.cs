@@ -105,7 +105,7 @@ public sealed class HistoryBackfillService : BackgroundService
     private async Task RunBackfillAsync(CancellationToken ct)
     {
         var sqlitePath = Environment.ExpandEnvironmentVariables(_options.Sinks.Sqlite.Path);
-        var symbols    = _subscriptions.Current;
+        var symbols    = _subscriptions.Current.ToList();   // materialise so we can index
 
         _logger.LogInformation(
             "History backfill starting for {Count} symbol(s).", symbols.Count);
