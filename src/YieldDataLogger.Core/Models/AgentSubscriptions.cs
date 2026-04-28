@@ -25,6 +25,14 @@ public sealed record AgentSubscriptions
     /// </summary>
     public int HistoryDays { get; init; } = 0;
 
+    /// <summary>
+    /// Milliseconds to pause between backfilling consecutive symbols.
+    /// 0 means "use the agent default from appsettings.json" (currently 300 ms).
+    /// Set to a low value (e.g. 50) for a fast first-run fill, or higher (500+) to keep
+    /// the machine responsive while downloading large histories in the background.
+    /// </summary>
+    public int BackfillDelayMs { get; init; } = 0;
+
     /// <summary>UTC timestamp of the most recent edit. Useful for diagnostics / "last saved".</summary>
     public DateTime UpdatedAtUtc { get; init; }
 }

@@ -21,7 +21,8 @@ public partial class SubscriptionsWindow : Window
     private readonly ObservableCollection<InstrumentRow> _rows = new();
     private readonly HashSet<string> _initialSubs = new(StringComparer.Ordinal);
     private ICollectionView? _view;
-    private int _initialHistoryDays = 30;
+    private int _initialHistoryDays  = 30;
+    private int _initialBackfillDelay = 300;
 
     internal SubscriptionsWindow(ManagerConfig config, string apiBaseUrl)
     {
@@ -55,9 +56,11 @@ public partial class SubscriptionsWindow : Window
             {
                 foreach (var s in current.Symbols) _initialSubs.Add(s.Trim().ToUpperInvariant());
                 // Pre-populate HistoryDays; fall back to 30 if never set.
-                _initialHistoryDays = current.HistoryDays > 0 ? current.HistoryDays : 30;
+                _initialHistoryDays   = current.HistoryDays    > 0 ? current.HistoryDays    : 30;
+                _initialBackfillDelay = current.BackfillDelayMs > 0 ? current.BackfillDelayMs : 300;
             }
-            HistoryDaysBox.Text = _initialHistoryDays.ToString();
+            HistoryDaysBox.Text   = _initialHistoryDays.ToString();
+            BackfillDelayBox.Text = _initialBackfillDelay.ToString();
 
             _rows.Clear();
             foreach (var i in instruments)
@@ -103,13 +106,19 @@ public partial class SubscriptionsWindow : Window
         var currentSet = _rows.Where(r => r.Subscribed).Select(r => r.CanonicalSymbol).ToHashSet(StringComparer.Ordinal);
         if (currentSet.Count != _initialSubs.Count) return true;
         foreach (var s in currentSet) if (!_initialSubs.Contains(s)) return true;
-        if (ParseHistoryDays() != _initialHistoryDays) return true;
+        if (ParseHistoryDays()   != _initialHistoryDays)   return true;
+        if (ParseBackfillDelay() != _initialBackfillDelay) return true;
         return false;
     }
 
     private int ParseHistoryDays()
     {
         return int.TryParse(HistoryDaysBox?.Text?.Trim(), out var d) && d > 0 ? d : _initialHistoryDays;
+    }
+
+    private int ParseBackfillDelay()
+    {
+        return int.TryParse(BackfillDelayBox?.Text?.Trim(), out var d) && d >= 0 ? d : _initialBackfillDelay;
     }
 
     // -- Event handlers --------------------------------------------------------
@@ -149,12 +158,14 @@ public partial class SubscriptionsWindow : Window
     {
         try
         {
-            var symbols    = _rows.Where(r => r.Subscribed).Select(r => r.CanonicalSymbol);
-            var historyDays = ParseHistoryDays();
-            SubscriptionsFile.Save(_config.SubscriptionsFilePath, symbols, historyDays);
+            var symbols      = _rows.Where(r => r.Subscribed).Select(r => r.CanonicalSymbol);
+            var historyDays  = ParseHistoryDays();
+            var backfillDelay = ParseBackfillDelay();
+            SubscriptionsFile.Save(_config.SubscriptionsFilePath, symbols, historyDays, backfillDelay);
             _initialSubs.Clear();
             foreach (var s in _rows.Where(r => r.Subscribed)) _initialSubs.Add(s.CanonicalSymbol);
-            _initialHistoryDays = historyDays;
+            _initialHistoryDays   = historyDays;
+            _initialBackfillDelay = backfillDelay;
             StatusText.Text = $"Saved. Agent will pick up changes within ~1 second.";
             ApplyBtn.IsEnabled = false;
         }

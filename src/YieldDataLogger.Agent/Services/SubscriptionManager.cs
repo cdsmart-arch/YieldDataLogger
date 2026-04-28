@@ -21,14 +21,15 @@ public sealed class SubscriptionManager
     private readonly object _gate = new();
     private HashSet<string> _current = new(StringComparer.Ordinal);
     private int _historyDays;
+    private int _backfillDelayMs;
 
     public event EventHandler<SubscriptionChange>? Changed;
 
-    /// <summary>
-    /// Days of history to backfill, as configured in the Manager's Symbols window.
-    /// Returns 0 when the user has never set it (agent falls back to appsettings.json default).
-    /// </summary>
-    public int HistoryDays { get { lock (_gate) return _historyDays; } }
+    /// <summary>Days of history to backfill (0 = use appsettings default).</summary>
+    public int HistoryDays    { get { lock (_gate) return _historyDays;    } }
+
+    /// <summary>Milliseconds to pause between symbols during backfill (0 = use appsettings default).</summary>
+    public int BackfillDelayMs { get { lock (_gate) return _backfillDelayMs; } }
 
     public SubscriptionManager(
         IOptions<AgentOptions> options,
@@ -43,9 +44,11 @@ public sealed class SubscriptionManager
         if (loaded is not null)
         {
             initial = loaded.Symbols;
-            _historyDays = loaded.HistoryDays;
-            _logger.LogInformation("Loaded {Count} subscriptions from {Path} (historyDays={Days}).",
-                loaded.Symbols.Count, store.FilePath, _historyDays);
+            _historyDays    = loaded.HistoryDays;
+            _backfillDelayMs = loaded.BackfillDelayMs;
+            _logger.LogInformation(
+                "Loaded {Count} subscriptions from {Path} (historyDays={Days}, backfillDelayMs={Delay}).",
+                loaded.Symbols.Count, store.FilePath, _historyDays, _backfillDelayMs);
         }
         else
         {
@@ -82,14 +85,15 @@ public sealed class SubscriptionManager
     /// the caller's responsibility - when the Manager writes the file the watcher invokes
     /// this, and when the Agent's seed path calls the store directly, no persistence is needed.
     /// </summary>
-    public void UpdateTo(IEnumerable<string> symbols, int historyDays = 0)
+    public void UpdateTo(IEnumerable<string> symbols, int historyDays = 0, int backfillDelayMs = 0)
     {
         var next = Normalize(symbols).ToHashSet(StringComparer.Ordinal);
 
         SubscriptionChange change;
         lock (_gate)
         {
-            _historyDays = historyDays;
+            _historyDays     = historyDays;
+            _backfillDelayMs = backfillDelayMs;
             var added   = next.Except(_current).ToArray();
             var removed = _current.Except(next).ToArray();
             if (added.Length == 0 && removed.Length == 0) return;

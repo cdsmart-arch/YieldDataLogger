@@ -45,13 +45,14 @@ public sealed class SubscriptionStore
         }
     }
 
-    public void Save(IEnumerable<string> symbols, int historyDays = 0)
+    public void Save(IEnumerable<string> symbols, int historyDays = 0, int backfillDelayMs = 0)
     {
         var snapshot = new AgentSubscriptions
         {
-            Symbols      = symbols.ToArray(),
-            HistoryDays  = historyDays,
-            UpdatedAtUtc = DateTime.UtcNow,
+            Symbols        = symbols.ToArray(),
+            HistoryDays    = historyDays,
+            BackfillDelayMs = backfillDelayMs,
+            UpdatedAtUtc   = DateTime.UtcNow,
         };
         Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
         var tmp = FilePath + ".tmp";

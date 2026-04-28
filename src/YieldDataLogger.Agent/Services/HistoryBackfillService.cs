@@ -128,10 +128,14 @@ public sealed class HistoryBackfillService : BackgroundService
             }
 
             // Breathe between symbols so disk/CPU/network aren't fully saturated.
-            // The delay is skipped after the last symbol and when only one symbol is subscribed.
-            if (_options.BackfillDelayMs > 0 && idx < symbols.Count - 1)
+            // Manager-configured value takes precedence over appsettings default.
+            var delayMs = _subscriptions.BackfillDelayMs > 0
+                ? _subscriptions.BackfillDelayMs
+                : _options.BackfillDelayMs;
+
+            if (delayMs > 0 && idx < symbols.Count - 1)
             {
-                try { await Task.Delay(_options.BackfillDelayMs, ct).ConfigureAwait(false); }
+                try { await Task.Delay(delayMs, ct).ConfigureAwait(false); }
                 catch (OperationCanceledException) { break; }
             }
         }

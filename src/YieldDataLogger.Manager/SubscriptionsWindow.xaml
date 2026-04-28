@@ -128,24 +128,39 @@
             </StackPanel>
         </Border>
 
-        <!-- History days setting -->
+        <!-- History / backfill settings -->
         <Border Grid.Row="1" Background="#0D1117" Padding="20,10" BorderBrush="#21262D" BorderThickness="0,0,0,1">
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock Text="Days of history to keep locally:"
-                           Foreground="{StaticResource MutedBrush}" FontSize="12"
-                           VerticalAlignment="Center" Margin="0,0,12,0"/>
-                <TextBox x:Name="HistoryDaysBox"
-                         Width="64" Padding="6,4"
-                         VerticalAlignment="Center"
-                         ToolTip="How many days of price history the Agent backfills from Azure on first run (or after Clear History). Default: 30."
-                         TextChanged="OnHistoryDaysChanged"/>
-                <TextBlock Text="days"
-                           Foreground="{StaticResource MutedBrush}" FontSize="12"
-                           VerticalAlignment="Center" Margin="8,0,0,0"/>
-                <TextBlock Text="(controls how far back the Agent fetches from Azure on install or after 'Clear History')"
-                           Foreground="#555E6B" FontSize="11"
-                           VerticalAlignment="Center" Margin="16,0,0,0"/>
-            </StackPanel>
+            <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+
+                <!-- History days -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,32,0">
+                    <TextBlock Text="Days of history:"
+                               Foreground="{StaticResource MutedBrush}" FontSize="12"
+                               VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <TextBox x:Name="HistoryDaysBox"
+                             Width="64" Padding="6,4" VerticalAlignment="Center"
+                             ToolTip="How many days of price history the Agent backfills from Azure on first run (or after Clear History). Default: 30."
+                             TextChanged="OnHistoryDaysChanged"/>
+                    <TextBlock Text="days"
+                               Foreground="{StaticResource MutedBrush}" FontSize="12"
+                               VerticalAlignment="Center" Margin="6,0,0,0"/>
+                </StackPanel>
+
+                <!-- Backfill delay -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Backfill delay:"
+                               Foreground="{StaticResource MutedBrush}" FontSize="12"
+                               VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <TextBox x:Name="BackfillDelayBox"
+                             Width="64" Padding="6,4" VerticalAlignment="Center"
+                             ToolTip="Milliseconds to pause between downloading each symbol during backfill. Lower = faster but more CPU/disk load (0 = flat out). Default: 300."
+                             TextChanged="OnHistoryDaysChanged"/>
+                    <TextBlock Text="ms between symbols"
+                               Foreground="{StaticResource MutedBrush}" FontSize="12"
+                               VerticalAlignment="Center" Margin="6,0,0,0"/>
+                </StackPanel>
+
+            </WrapPanel>
         </Border>
 
         <!-- Toolbar: search + select all / none -->
