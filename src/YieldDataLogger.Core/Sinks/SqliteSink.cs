@@ -94,12 +94,25 @@ public sealed class SqliteSink : IPriceSink, IDisposable
 
             using (var cmd = cn.CreateCommand())
             {
-                cmd.CommandText = "CREATE TABLE IF NOT EXISTS PriceData (TIMESTAMP real, CLOSE real)";
+                // TIMESTAMP is the natural primary key; UNIQUE ensures INSERT OR IGNORE
+                // silently drops duplicate ticks (e.g. from backfill replays or reconnects).
+                // Legacy files created by YieldLoggerUI already carry this constraint.
+                cmd.CommandText = """
+                    CREATE TABLE IF NOT EXISTS PriceData (
+                        TIMESTAMP real NOT NULL,
+                        CLOSE     real NOT NULL,
+                        CONSTRAINT uq_timestamp UNIQUE (TIMESTAMP)
+                    )
+                    """;
+                cmd.ExecuteNonQuery();
+
+                // Add the constraint to any legacy file that predates this schema.
+                // CREATE UNIQUE INDEX IF NOT EXISTS is a no-op when the index already exists.
+                cmd.CommandText = "CREATE UNIQUE INDEX IF NOT EXISTS uq_timestamp ON PriceData (TIMESTAMP)";
                 cmd.ExecuteNonQuery();
             }
 
             _connections[symbol] = cn;
-            _logger.LogDebug("SqliteSink opened connection for {Symbol} (WAL mode)", symbol);
             return cn;
         }
     }
