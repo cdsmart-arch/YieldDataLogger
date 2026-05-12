@@ -86,6 +86,25 @@ Copy-Item -Path "$agentSrc\*" -Destination $agentDest -Recurse -Force
 Write-Host "     Done." -ForegroundColor Green
 
 # ---------------------------------------------------------------------------
+# 2b. Grant the service (SYSTEM) and interactive users write access to the
+#     ProgramData folder the Agent writes status/log files into.
+#     This prevents UnauthorizedAccessException if the folder was previously
+#     created under a different user account.
+# ---------------------------------------------------------------------------
+Write-Step "Setting data-directory permissions..."
+$dataDir = "C:\ProgramData\YieldDataLogger"
+New-Item -ItemType Directory -Path $dataDir -Force | Out-Null
+$acl = Get-Acl $dataDir
+foreach ($identity in @("SYSTEM", "Users")) {
+    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+        $identity, "Modify",
+        "ContainerInherit,ObjectInherit", "None", "Allow")
+    $acl.AddAccessRule($rule)
+}
+Set-Acl -Path $dataDir -AclObject $acl
+Write-Host "     Permissions set on $dataDir" -ForegroundColor Green
+
+# ---------------------------------------------------------------------------
 # 3. Register and start the Windows Service
 # ---------------------------------------------------------------------------
 Write-Step "Registering Windows Service '$serviceName'..."

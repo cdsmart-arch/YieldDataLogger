@@ -30,6 +30,9 @@ public sealed class StatusWriterService : BackgroundService
     private readonly ILogger<StatusWriterService> _logger;
     private readonly DateTime _startedAtUtc = DateTime.UtcNow;
     private readonly int _pid = Environment.ProcessId;
+    // After an UnauthorizedAccessException we stop trying and log exactly once,
+    // rather than spamming the Windows Event Log every second.
+    private bool _permissionErrorLogged;
 
     public StatusWriterService(
         IOptions<AgentOptions> options,
@@ -104,6 +107,19 @@ public sealed class StatusWriterService : BackgroundService
                 await WriteAtomicAsync(path, snapshot, stoppingToken);
             }
             catch (OperationCanceledException) { return; }
+            catch (UnauthorizedAccessException ex)
+            {
+                // Permission denied — log once and stop polling so the Event Log isn't
+                // flooded every second. The Manager will show stale status but won't crash.
+                if (!_permissionErrorLogged)
+                {
+                    _permissionErrorLogged = true;
+                    _logger.LogWarning(ex,
+                        "No write permission for status file {Path} — status updates disabled. " +
+                        "Re-run the installer as Administrator to fix directory permissions.", path);
+                }
+                return;
+            }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Failed to write status file {Path}", path);
