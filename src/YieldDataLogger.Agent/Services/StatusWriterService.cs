@@ -107,22 +107,15 @@ public sealed class StatusWriterService : BackgroundService
                 await WriteAtomicAsync(path, snapshot, stoppingToken);
             }
             catch (OperationCanceledException) { return; }
-            catch (UnauthorizedAccessException ex)
+            catch (Exception ex)
             {
-                // Permission denied — log once and stop polling so the Event Log isn't
-                // flooded every second. The Manager will show stale status but won't crash.
+                // A single write failure must never permanently kill the loop.
+                // Log at most once per restart to avoid Event Log spam, then keep retrying.
                 if (!_permissionErrorLogged)
                 {
                     _permissionErrorLogged = true;
-                    _logger.LogWarning(ex,
-                        "No write permission for status file {Path} — status updates disabled. " +
-                        "Re-run the installer as Administrator to fix directory permissions.", path);
+                    _logger.LogWarning(ex, "Failed to write status file {Path} (will keep retrying)", path);
                 }
-                return;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to write status file {Path}", path);
             }
 
             try { await Task.Delay(interval, stoppingToken); }
@@ -145,7 +138,19 @@ public sealed class StatusWriterService : BackgroundService
         {
             await JsonSerializer.SerializeAsync(fs, status, JsonOpts, ct);
         }
-        // File.Move with overwrite is atomic on NTFS, so readers never observe a half-written file.
-        File.Move(tmp, path, overwrite: true);
+
+        // Prefer atomic rename so readers never see a half-written file.
+        // If the rename fails (e.g. the file is momentarily open without FileShare.Delete
+        // by another process), fall back to a direct overwrite. The Manager handles
+        // partial/stale JSON gracefully, so a brief torn read is acceptable.
+        try
+        {
+            File.Move(tmp, path, overwrite: true);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            File.Copy(tmp, path, overwrite: true);
+            try { File.Delete(tmp); } catch { /* best-effort cleanup */ }
+        }
     }
 }
