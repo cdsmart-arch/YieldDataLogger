@@ -118,6 +118,11 @@ if ($LASTEXITCODE -ne 0) { throw "sc.exe create failed: $result" }
 # Give the service a friendly description visible in services.msc
 sc.exe description $serviceName "Connects to the YieldDataLogger Azure hub and writes live price ticks to local SQLite files." | Out-Null
 
+# Configure automatic restart on failure so the service recovers without manual intervention.
+# Attempts: restart after 5s, 10s, 30s. Failure counter resets after 24h of clean running.
+sc.exe failure $serviceName reset= 86400 actions= restart/5000/restart/10000/restart/30000 | Out-Null
+Write-Host "     Auto-restart on failure configured." -ForegroundColor Green
+
 Write-Step "Starting service..."
 Start-Service -Name $serviceName
 Start-Sleep -Seconds 3
