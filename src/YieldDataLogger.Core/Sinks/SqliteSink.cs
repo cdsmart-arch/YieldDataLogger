@@ -53,13 +53,16 @@ public sealed class SqliteSink : IPriceSink, IDisposable
             cmd.Parameters.AddWithValue("@CLOSE", tick.Price);
             cmd.ExecuteNonQuery();
 
-            // Checkpoint WAL back into the main .sqlite file after every write.
-            // PASSIVE mode is non-blocking — it only checkpoints pages that no reader
-            // is currently accessing.  This keeps the main file's mtime current so
-            // the NinjaTrader FileSystemWatcher fires on *.sqlite reliably, even when
-            // the WAL would otherwise accumulate silently in the sidecar file.
+            // Checkpoint WAL back into the main .sqlite file after every write so that
+            // all readers (NinjaTrader FileSystemWatcher, external apps) see current data.
+            //
+            // FULL mode waits for any active reader transaction to finish before
+            // checkpointing, then flushes all WAL frames to the main file.  This ensures
+            // the main .sqlite mtime advances on every tick regardless of how many readers
+            // are connected.  The cost is a brief wait when a reader is mid-transaction,
+            // which is acceptable for this non-latency-critical write path.
             using var chk = cn.CreateCommand();
-            chk.CommandText = "PRAGMA wal_checkpoint(PASSIVE)";
+            chk.CommandText = "PRAGMA wal_checkpoint(FULL)";
             chk.ExecuteNonQuery();
         }
         catch (Exception ex)
