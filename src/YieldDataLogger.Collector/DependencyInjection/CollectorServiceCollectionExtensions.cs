@@ -31,6 +31,17 @@ public static class CollectorServiceCollectionExtensions
         {
             http.Timeout = TimeSpan.FromSeconds(15);
             http.DefaultRequestHeaders.UserAgent.ParseAdd("YieldDataLogger/1.0 (+collector)");
+        })
+        .ConfigurePrimaryHttpMessageHandler(sp =>
+        {
+            var opts = sp.GetRequiredService<IOptions<CollectorOptions>>().Value.Cnbc;
+            var handler = new System.Net.Http.SocketsHttpHandler();
+            if (!string.IsNullOrWhiteSpace(opts.Proxy))
+            {
+                handler.Proxy = new System.Net.WebProxy(new Uri(opts.Proxy));
+                handler.UseProxy = true;
+            }
+            return handler;
         });
 
         services.AddSingleton<InstrumentCatalog>();

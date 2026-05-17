@@ -31,6 +31,16 @@ services:
       # Disable the Tables backend so the container doesn't try to reach Azurite at boot.
       Storage__Tables__Enabled: "false"
       Auth__Secret: "${YDL_INGEST_SECRET}"
+      # Optional outbound proxy for the CnbcPoller's HttpClient. Default empty = direct
+      # connection. Set to e.g. "socks5://host.docker.internal:40001" only if you're hosting
+      # on a provider whose IP CNBC blocks (Hetzner, OVH, etc.) and you've stood up a
+      # SOCKS5 proxy on the host. NOT needed on AWS / Azure / Linode-Akamai / etc.
+      Collector__Cnbc__Proxy: "${YDL_CNBC_PROXY:-}"
+    extra_hosts:
+      # Lets the container resolve `host.docker.internal` to the docker bridge gateway IP,
+      # which is needed if you do end up routing CnbcPoller through a host-side proxy.
+      # Harmless when unused.
+      - "host.docker.internal:host-gateway"
     volumes:
       - /var/lib/ydl:/data
     # Container's appuser (uid 999 in the playwright image) needs write on the volume.

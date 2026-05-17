@@ -6,6 +6,14 @@
 # orange-cloud proxy off and the TLS cert valid even if Cloudflare CDN ever turns on.
 
 {$YDL_HOSTNAME} {
+    # DNS-01 challenge via Cloudflare API. Required so cert acquisition works even when
+    # the A record hasn't been flipped yet (i.e. during the initial deploy or a migration).
+    # The CLOUDFLARE_API_TOKEN env var is injected by systemd drop-in override.conf and must
+    # be scoped to Zone:Read + DNS:Edit on the parent zone (csindicators.com).
+    tls {
+        dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+    }
+
     encode gzip
 
     # Forward the real client IP through to ASP.NET so it shows up in logs.

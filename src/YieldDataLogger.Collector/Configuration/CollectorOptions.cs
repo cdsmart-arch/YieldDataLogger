@@ -46,6 +46,14 @@ public sealed class CnbcOptions
     public string BaseUrl { get; set; } =
         "http://quote.cnbc.com/quote-html-webservice/quote.htm" +
         "?partnerId=2&requestMethod=quick&exthrs=1&noform=1&fund=1&output=json";
+
+    /// <summary>
+    /// Outbound proxy for CNBC scraping. Required on hosts whose IP is blocked by CNBC's
+    /// edge (e.g. Hetzner / OVH datacenter ranges). Empty = direct connection.
+    /// Accepts socks5:// and http:// URIs; .NET 6+ SocketsHttpHandler supports both natively.
+    /// Example for Hetzner+WARP: "socks5://host.docker.internal:40001".
+    /// </summary>
+    public string Proxy { get; set; } = "";
 }
 
 public sealed class InvestingOptions
