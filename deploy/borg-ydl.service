@@ -1,0 +1,10 @@
+[Unit]
+Description=YDL nightly Borg backup to Hetzner Storage Box
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/borg-backup-ydl
+Nice=10
+IOSchedulingPriority=7

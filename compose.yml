@@ -1,0 +1,43 @@
+# YDL Hetzner deployment.
+#
+# Single container. Reuses the existing Dockerfile (Playwright + .NET 8). Data lives on the
+# host at /var/lib/ydl/ so container replacements keep history. Auth secret is injected at
+# runtime from /etc/ydl.env (see deploy/README.md for provisioning).
+#
+# Pull-and-restart:
+#   docker compose pull && docker compose up -d
+#
+# Caddy on the host terminates TLS at :443 and reverse-proxies to 127.0.0.1:8080.
+
+services:
+  ydl-api:
+    # Tag works for both flows:
+    #   - First deploy / local: `docker compose build` populates this tag from ./Dockerfile.
+    #   - CI deploy: `docker compose pull` fetches the same tag from GHCR (CI pushes it there).
+    image: ${YDL_IMAGE:-ghcr.io/cdsma/yielddatalogger-api:latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ydl-api
+    restart: unless-stopped
+    # Bind to loopback only — Caddy on the host is the public entry point and adds TLS.
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      ASPNETCORE_URLS: "http://+:8080"
+      Storage__Backend: "sqlite"
+      Storage__Sqlite__Enabled: "true"
+      Storage__Sqlite__Path: "/data/ydl.sqlite"
+      # Disable the Tables backend so the container doesn't try to reach Azurite at boot.
+      Storage__Tables__Enabled: "false"
+      Auth__Secret: "${YDL_INGEST_SECRET}"
+    volumes:
+      - /var/lib/ydl:/data
+    # Container's appuser (uid 999 in the playwright image) needs write on the volume.
+    # The provisioning runbook chowns /var/lib/ydl to that uid:gid.
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

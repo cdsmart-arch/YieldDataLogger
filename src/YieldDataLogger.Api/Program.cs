@@ -1,12 +1,14 @@
 using Azure.Data.Tables;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using YieldDataLogger.Api.Auth;
 using YieldDataLogger.Api.Data;
 using YieldDataLogger.Api.Hosting;
 using YieldDataLogger.Api.Realtime;
 using YieldDataLogger.Api.Sinks;
 using YieldDataLogger.Api.Storage;
 using YieldDataLogger.Api.Storage.Sql;
+using YieldDataLogger.Api.Storage.Sqlite;
 using YieldDataLogger.Api.Storage.Tables;
 using YieldDataLogger.Collector.DependencyInjection;
 using YieldDataLogger.Collector.Pipeline;
@@ -28,12 +30,16 @@ builder.Services.AddSignalR()
     });
 builder.Services.AddSingleton<IPriceSink, SignalRPriceSink>();
 
+// --- Auth (shared-secret middleware) ---
+var auth = builder.Configuration.GetSection(IngestSecretOptions.SectionName).Get<IngestSecretOptions>() ?? new IngestSecretOptions();
+builder.Services.AddSingleton(auth);
+
 // --- Storage configuration ---
 builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection(StorageOptions.SectionName));
 var storage = builder.Configuration.GetSection(StorageOptions.SectionName).Get<StorageOptions>() ?? new StorageOptions();
 var backend = (storage.Backend ?? "table").Trim().ToLowerInvariant();
 
-// --- Azure Table Storage (primary backend) ---
+// --- Azure Table Storage (original cloud backend) ---
 if (storage.Tables.Enabled || backend == "table")
 {
     builder.Services.AddSingleton(sp => new TableServiceClient(storage.Tables.ConnectionString));
@@ -58,11 +64,23 @@ if (storage.Sql.Enabled || backend == "sql")
         builder.Services.AddSingleton<IPriceSink, SqlPriceSink>();
 }
 
+// --- SQLite (Hetzner self-host backend) ---
+// Single file on the mounted /data volume. Initializer runs once at startup to create the
+// schema + enable WAL; the sink + reader open short-lived pooled connections per call.
+if (storage.Sqlite.Enabled || backend == "sqlite")
+{
+    builder.Services.AddHostedService<SqliteInitializer>();
+    builder.Services.AddSingleton<IPriceSink, SqlitePriceSink>();
+}
+
 // --- History reader: one implementation based on Backend ---
 switch (backend)
 {
     case "sql":
         builder.Services.AddSingleton<IPriceHistoryReader, SqlPriceHistoryReader>();
+        break;
+    case "sqlite":
+        builder.Services.AddSingleton<IPriceHistoryReader, SqlitePriceHistoryReader>();
         break;
     case "table":
     default:
@@ -86,6 +104,9 @@ if (app.Environment.IsDevelopment())
 // Serve the admin SPA from wwwroot/admin. UseDefaultFiles rewrites /admin/ -> /admin/index.html.
 app.UseDefaultFiles();
 app.UseStaticFiles();
+
+// Shared-secret gate. No-op when Auth:Secret is empty so local dev with Azurite still works.
+app.UseMiddleware<IngestSecretMiddleware>();
 
 app.MapControllers();
 app.MapHub<TicksHub>("/hubs/ticks");

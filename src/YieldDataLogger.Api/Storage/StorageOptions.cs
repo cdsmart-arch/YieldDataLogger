@@ -8,11 +8,27 @@ public sealed class StorageOptions
 {
     public const string SectionName = "Storage";
 
-    /// <summary>"table" (default, Azure Table Storage) or "sql" (Azure SQL / SQL Server).</summary>
+    /// <summary>
+    /// "table" (Azure Table Storage, original cloud backend), "sql" (Azure SQL / SQL Server),
+    /// or "sqlite" (single-file local DB, used on the Hetzner deploy).
+    /// </summary>
     public string Backend { get; set; } = "table";
 
     public TableStorageOptions Tables { get; set; } = new();
     public SqlStorageOptions Sql { get; set; } = new();
+    public SqliteStorageOptions Sqlite { get; set; } = new();
+}
+
+public sealed class SqliteStorageOptions
+{
+    /// <summary>When true the SqlitePriceSink is wired into the dispatcher.</summary>
+    public bool Enabled { get; set; } = false;
+
+    /// <summary>
+    /// Path to the single-file SQLite database. The container mounts /data so the file
+    /// survives container replacement; set this to "/data/ydl.sqlite" in prod via env var.
+    /// </summary>
+    public string Path { get; set; } = "ydl.sqlite";
 }
 
 public sealed class TableStorageOptions

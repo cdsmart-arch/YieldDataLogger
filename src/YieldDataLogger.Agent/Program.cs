@@ -85,8 +85,20 @@ builder.Services.AddSingleton<BackfillTracker>();
 
 builder.Services.AddHostedService<StatusWriterService>();
 
-// HttpClient used by the history backfill service.
-builder.Services.AddHttpClient("backfill");
+// HttpClient used by the history backfill service. If AuthToken is set we attach it on every
+// request so the Hetzner Api's IngestSecretMiddleware accepts the call. Both header names are
+// sent so the same Agent build works against a server that checks either one.
+builder.Services.AddHttpClient("backfill")
+    .ConfigureHttpClient((sp, http) =>
+    {
+        var token = sp.GetRequiredService<IOptions<AgentOptions>>().Value.AuthToken;
+        if (!string.IsNullOrWhiteSpace(token))
+        {
+            http.DefaultRequestHeaders.TryAddWithoutValidation("X-Ingest-Secret", token);
+            http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+    });
 
 // History backfill: runs after each hub connect, pulls missing ticks from the REST API,
 // and bulk-inserts them into the local SQLite files so NinjaTrader always has full history.

@@ -1,0 +1,28 @@
+# Caddy on the Hetzner host. Terminates TLS for ydl.{domain} via Let's Encrypt and proxies
+# everything to the ydl-api container on localhost:8080.
+#
+# Replace {$YDL_HOSTNAME} via the env var Caddy reads at startup (see /etc/systemd/system/
+# caddy.service.d/override.conf in deploy/README.md). Cloudflare DNS challenge keeps the
+# orange-cloud proxy off and the TLS cert valid even if Cloudflare CDN ever turns on.
+
+{$YDL_HOSTNAME} {
+    encode gzip
+
+    # Forward the real client IP through to ASP.NET so it shows up in logs.
+    request_header X-Forwarded-Proto {scheme}
+    request_header X-Forwarded-For {remote_host}
+
+    reverse_proxy 127.0.0.1:8080 {
+        # SignalR needs WebSockets; Caddy handles the Upgrade headers automatically when the
+        # client sends them, but be explicit so it's obvious to operators.
+        header_up Host {host}
+    }
+
+    log {
+        output file /var/log/caddy/ydl-access.log {
+            roll_size 50mb
+            roll_keep 5
+        }
+        format console
+    }
+}

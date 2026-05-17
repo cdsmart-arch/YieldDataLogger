@@ -1,0 +1,11 @@
+[Unit]
+Description=YDL nightly Borg backup timer
+
+[Timer]
+# Daily at 03:00 UTC. Persistent=true catches up if the VPS was off.
+OnCalendar=*-*-* 03:00:00 UTC
+Persistent=true
+Unit=borg-ydl.service
+
+[Install]
+WantedBy=timers.target
