@@ -10,6 +10,7 @@ public static class SymbolTranslator
     {
         ["US3M"] = "US03M",
         ["US2Y"] = "US02Y",
+        ["US3Y"] = "US03Y",
         ["US5Y"] = "US05Y",
         ["US7Y"] = "US07Y",
         ["DE2Y"] = "DE02Y",
