@@ -5,7 +5,7 @@
 ; ---------------------------------------------------------------------------
 
 #define AppName      "YieldDataLogger"
-#define AppVersion   "1.0"
+#define AppVersion   "1.1"
 #define AppPublisher "cdsmart-arch"
 #define AppURL       "https://github.com/cdsmart-arch/YieldDataLogger"
 #define ServiceName  "YieldDataLogger.Agent"
@@ -107,7 +107,7 @@ Filename: "sc.exe"; \
 
 ; Set a friendly description (shows in services.msc).
 Filename: "sc.exe"; \
-  Parameters: "description ""{#ServiceName}"" ""Connects to YieldDataLogger Azure hub and writes live price ticks to local files."""; \
+  Parameters: "description ""{#ServiceName}"" ""Connects to the YieldDataLogger hub and writes live price ticks to local files."""; \
   Flags: runhidden waituntilterminated; Components: agent
 
 ; Grant BUILTIN\Users permission to start and stop the service so the Manager
@@ -144,6 +144,9 @@ Filename: "taskkill.exe"; Parameters: "/f /im ""{#ManagerExe}"""; Flags: runhidd
 ; Pascal script helpers
 ; ---------------------------------------------------------------------------
 [Code]
+var
+  SecretPage: TInputQueryWizardPage;
+
 // Returns True if the YieldDataLogger.Agent service already exists so the
 // stop/delete steps in the Run section are only executed on upgrades.
 function ServiceExists(): Boolean;
@@ -152,4 +155,72 @@ var
 begin
   Exec('sc.exe', 'query "{#ServiceName}"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Result := (ResultCode = 0);
+end;
+
+// Add a custom wizard page after the Components selection that collects the
+// shared ingest secret from the user. The secret is not bundled in the installer
+// (it stays out of git); each install gets it from the administrator out-of-band.
+procedure InitializeWizard;
+begin
+  SecretPage := CreateInputQueryPage(
+    wpSelectComponents,
+    'Ingest Secret',
+    'Connect this Agent to the YieldDataLogger hub',
+    'Paste the ingest secret you received from the YDL administrator. ' +
+    'It is a 64-character hex string and authenticates this Agent to the hub at ydl.csindicators.com. ' +
+    'You can leave this blank for now and edit %ProgramData%\YieldDataLogger\Agent\appsettings.Production.json later if you do not have it yet.');
+  SecretPage.Add('Ingest Secret:', False);
+end;
+
+// Light validation: warn if the value doesn't look like the 64-char hex secret
+// we expect. Allow blank (so users without a secret yet can still install and
+// fill it in later) but require either blank or sensible length.
+function NextButtonClick(CurPageID: Integer): Boolean;
+var
+  S: string;
+begin
+  Result := True;
+  if CurPageID = SecretPage.ID then
+  begin
+    S := Trim(SecretPage.Values[0]);
+    if (Length(S) > 0) and (Length(S) < 16) then
+    begin
+      MsgBox(
+        'That secret looks too short. Expected a 64-character hex string from your administrator.' + #13#10#13#10 +
+        'Click OK to go back and re-paste, or clear the field to install without a secret (the Agent will not be able to connect until you add the secret to appsettings.Production.json).',
+        mbError, MB_OK);
+      Result := False;
+    end;
+  end;
+end;
+
+// After files are copied but before the Run section starts the service, write
+// the AuthToken into a Production-environment override. ASP.NET's configuration
+// chain (appsettings.json -> appsettings.{Environment}.json) auto-merges this on
+// top of the bundled appsettings.json without us needing to touch the bundled file.
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ConfigPath: string;
+  ConfigContent: string;
+  Secret: string;
+begin
+  if CurStep = ssPostInstall then
+  begin
+    Secret := Trim(SecretPage.Values[0]);
+    if Secret = '' then
+      Exit;  // Skip override file; user will create/edit it manually later
+
+    ConfigPath := ExpandConstant('{app}\Agent\appsettings.Production.json');
+    ConfigContent :=
+      '{' + #13#10 +
+      '  "Agent": {' + #13#10 +
+      '    "AuthToken": "' + Secret + '"' + #13#10 +
+      '  }' + #13#10 +
+      '}' + #13#10;
+    if not SaveStringToFile(ConfigPath, ConfigContent, False) then
+      MsgBox(
+        'Could not write the secret to ' + ConfigPath + '.' + #13#10 +
+        'You will need to add it manually: open that file in notepad as Administrator and paste the AuthToken under the "Agent" section.',
+        mbError, MB_OK);
+  end;
 end;
