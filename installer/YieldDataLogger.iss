@@ -5,7 +5,7 @@
 ; ---------------------------------------------------------------------------
 
 #define AppName      "YieldDataLogger"
-#define AppVersion   "1.1"
+#define AppVersion   "1.2"
 #define AppPublisher "cdsmart-arch"
 #define AppURL       "https://github.com/cdsmart-arch/YieldDataLogger"
 #define ServiceName  "YieldDataLogger.Agent"
@@ -60,6 +60,21 @@ Name: "agent";   Description: "Agent only (no tray dashboard)"
 [Components]
 Name: "agent";   Description: "YieldDataLogger Agent (background service)"; Types: full agent; Flags: fixed
 Name: "manager"; Description: "YieldDataLogger Manager (system tray dashboard)"; Types: full
+
+; ---------------------------------------------------------------------------
+; Dirs — created with permissive ACLs so the Manager (running as the
+; interactive user, NOT admin) can edit subscriptions.json, the Agent service
+; (running as LocalSystem) can write status.json + the Yields *.sqlite files,
+; and both can read each other's output. Without these, non-admin users hit
+; "Access to path denied" when adding a symbol via the Manager.
+;
+; `users-modify` grants BUILTIN\Users Modify + inherits to children.
+; Inno Setup handles the SID translation, so this works on any Windows locale.
+; ---------------------------------------------------------------------------
+[Dirs]
+Name: "{commonappdata}\YieldDataLogger";        Permissions: users-modify
+Name: "{commonappdata}\YieldDataLogger\Agent";  Permissions: users-modify
+Name: "{commonappdata}\YieldDataLogger\Yields"; Permissions: users-modify
 
 ; ---------------------------------------------------------------------------
 ; Files
