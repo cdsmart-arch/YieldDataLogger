@@ -4,6 +4,7 @@
   "instruments": [
     { "canonicalSymbol": "US03M",    "cnbcSymbol": "US3M",   "category": "bonds" },
     { "canonicalSymbol": "US02Y",    "cnbcSymbol": "US2Y",   "category": "bonds" },
+    { "canonicalSymbol": "US03Y",    "cnbcSymbol": "US3Y",   "category": "bonds" },
     { "canonicalSymbol": "US05Y",    "cnbcSymbol": "US5Y",   "category": "bonds" },
     { "canonicalSymbol": "US07Y",    "cnbcSymbol": "US7Y",   "category": "bonds" },
     { "canonicalSymbol": "US10Y",    "cnbcSymbol": "US10Y",  "category": "bonds" },
