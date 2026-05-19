@@ -9,6 +9,8 @@ public static class SymbolTranslator
     private static readonly Dictionary<string, string> CnbcEquivalents = new(StringComparer.Ordinal)
     {
         ["US3M"] = "US03M",
+        ["US6M"] = "US06M",
+        ["US1Y"] = "US01Y",
         ["US2Y"] = "US02Y",
         ["US3Y"] = "US03Y",
         ["US5Y"] = "US05Y",
