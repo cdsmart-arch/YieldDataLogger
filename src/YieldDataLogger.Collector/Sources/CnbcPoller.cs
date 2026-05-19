@@ -94,7 +94,11 @@ public sealed class CnbcPoller : BackgroundService
                     System.Globalization.CultureInfo.InvariantCulture, out var price))
                 continue;
 
-            var canonical = SymbolTranslator.FromCnbc(symbol);
+            // Catalog is the single source of truth (instruments.json edit = job done).
+            // Fall back to the legacy SymbolTranslator dict if the symbol isn't in the catalog
+            // — defensive: keeps any not-yet-migrated entries working without a regression.
+            if (!_catalog.TryGetCanonicalByCnbc(symbol, out var canonical))
+                canonical = SymbolTranslator.FromCnbc(symbol);
             var unix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             await _dispatcher.DispatchAsync(
                 new PriceTick(canonical, unix, price, "cnbc"), ct).ConfigureAwait(false);

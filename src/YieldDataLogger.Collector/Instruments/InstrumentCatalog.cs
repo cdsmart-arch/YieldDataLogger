@@ -51,6 +51,30 @@ public sealed class InstrumentCatalog
         get { lock (_sync) return _byCnbc.Keys.ToArray(); }
     }
 
+    /// <summary>
+    /// Maps a CNBC quick-quote symbol to the catalog's canonical symbol. Returns true and
+    /// sets <paramref name="canonical"/> when a matching instrument exists; false otherwise
+    /// (callers can then fall back to <see cref="Core.SymbolTranslator.FromCnbc"/> or treat
+    /// the raw symbol as canonical).
+    ///
+    /// This is the single source of truth: adding a new CNBC-scraped instrument is purely
+    /// an instruments.json edit. No code change required.
+    /// </summary>
+    public bool TryGetCanonicalByCnbc(string cnbcSymbol, out string canonical)
+    {
+        canonical = "";
+        if (string.IsNullOrEmpty(cnbcSymbol)) return false;
+        lock (_sync)
+        {
+            if (_byCnbc.TryGetValue(cnbcSymbol, out var instr))
+            {
+                canonical = instr.CanonicalSymbol;
+                return true;
+            }
+        }
+        return false;
+    }
+
     public string? SourcePath
     {
         get { lock (_sync) return _loadedFrom; }
