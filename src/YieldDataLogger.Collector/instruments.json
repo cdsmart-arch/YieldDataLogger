@@ -11,7 +11,10 @@
     { "canonicalSymbol": "US20Y",    "cnbcSymbol": "US20Y",  "category": "bonds" },
     { "canonicalSymbol": "US30Y",    "cnbcSymbol": "US30Y",  "category": "bonds" },
 
+    { "canonicalSymbol": "JP03M",    "cnbcSymbol": "JP3M",   "category": "bonds" },
+    { "canonicalSymbol": "JP06M",    "cnbcSymbol": "JP6M",   "category": "bonds" },
     { "canonicalSymbol": "JP02Y",    "cnbcSymbol": "JP2Y",   "category": "bonds" },
+    { "canonicalSymbol": "JP03Y",    "cnbcSymbol": "JP3Y",   "category": "bonds" },
     { "canonicalSymbol": "JP05Y",    "cnbcSymbol": "JP5Y",   "category": "bonds" },
     { "canonicalSymbol": "JP10Y",    "cnbcSymbol": "JP10Y",  "category": "bonds" },
     { "canonicalSymbol": "JP30Y",    "cnbcSymbol": "JP30Y",  "category": "bonds" },
