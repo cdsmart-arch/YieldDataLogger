@@ -90,7 +90,7 @@
     { "canonicalSymbol": "CH30Y",    "investingPid": 23725,  "category": "bonds" },
 
     { "canonicalSymbol": "GILT",     "investingPid": 8886,   "category": "bonds" },
-    { "canonicalSymbol": "FGBS",     "investingPid": 8890,   "category": "bonds" },
+    { "canonicalSymbol": "FGBS",     "investingPid": 8900,   "category": "bonds" },
     { "canonicalSymbol": "FGBM",     "investingPid": 8899,   "category": "bonds" },
     { "canonicalSymbol": "BUND",     "investingPid": 8895,   "category": "bonds" },
     { "canonicalSymbol": "TIP",      "investingPid": 8941,   "category": "bonds" },
