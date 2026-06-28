@@ -1,4 +1,8 @@
-# YDL Hetzner deployment.
+# YDL deployment (AWS Lightsail, Sydney).
+#
+# NOTE: originally provisioned on Hetzner, but CNBC/Akamai IP-blocks Hetzner ranges, so the
+# live host is now Lightsail (an Akamai-accepted IP). Some docs/secret names still say
+# "Hetzner" — that's legacy; the mechanism below is host-agnostic.
 #
 # Single container. Reuses the existing Dockerfile (Playwright + .NET 8). Data lives on the
 # host at /var/lib/ydl/ so container replacements keep history. Auth secret is injected at

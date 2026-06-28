@@ -1,4 +1,10 @@
-name: Build and deploy API to Hetzner
+name: Build and deploy API to Lightsail (Sydney)
+
+# NOTE ON NAMING: the live host is an AWS Lightsail box in Sydney, NOT Hetzner.
+# We originally targeted Hetzner, but CNBC/Akamai IP-blocks Hetzner ranges, so we
+# moved to Lightsail (an Akamai-accepted IP). The HETZNER_* secret names below are
+# legacy leftovers — they now point at the Lightsail box. Renaming them means
+# updating BOTH this file and GitHub → Settings → Secrets in lockstep.
 
 # Trigger on push to main, or manually via the Actions tab.
 on:
@@ -15,8 +21,8 @@ on:
   workflow_dispatch:   # allows "Run workflow" button in GitHub UI
 
 # All secrets live in GitHub → Settings → Secrets and variables → Actions.
-# Required secrets:
-#   HETZNER_HOST        - SSH host or IP of the Hetzner VPS (e.g. 1.2.3.4)
+# Required secrets (names are legacy; all three point at the Lightsail Sydney box):
+#   HETZNER_HOST        - SSH host or IP of the Lightsail VPS (e.g. 1.2.3.4)
 #   HETZNER_USER        - SSH user (typically "root" or a deploy user with docker group)
 #   HETZNER_SSH_KEY     - Private SSH key (matching one installed on the VPS, ed25519)
 # GITHUB_TOKEN is provided automatically and has packages:write for GHCR.
@@ -60,9 +66,9 @@ jobs:
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           cache-to: type=inline
 
-      # Pull-and-restart on the Hetzner host. Compose reads /etc/ydl.env on the host so the
+      # Pull-and-restart on the Lightsail host. Compose reads /etc/ydl.env on the host so the
       # secret never enters this workflow's logs.
-      - name: Deploy to Hetzner
+      - name: Deploy to Lightsail
         uses: appleboy/ssh-action@v1.0.3
         with:
           host:     ${{ secrets.HETZNER_HOST }}

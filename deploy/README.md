@@ -1,6 +1,12 @@
-# YDL Hetzner deployment runbook
+# YDL deployment runbook (AWS Lightsail, Sydney)
 
-Provisioning a fresh Hetzner CX22 (Ubuntu 22.04) and bringing YDL up. Follow top-to-bottom.
+> **Naming note:** this runbook was written for Hetzner, which is where YDL was first
+> provisioned. CNBC/Akamai IP-blocks Hetzner ranges, so the live host moved to an AWS
+> Lightsail instance in Sydney (an Akamai-accepted IP). The steps below are host-agnostic —
+> read "Hetzner" as "the Lightsail box" throughout, including the `HETZNER_*` GitHub Actions
+> secret names, which now point at Lightsail.
+
+Provisioning a fresh Ubuntu 22.04 VPS and bringing YDL up. Follow top-to-bottom.
 
 ## 0. Prerequisites you do once outside the box
 
