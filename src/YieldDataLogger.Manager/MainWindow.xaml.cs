@@ -16,6 +16,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _timer;
     private readonly ObservableCollection<SymbolRow> _rows = new();
     private ManagerState? _latestState;
+    private bool _refreshing;
 
     internal event EventHandler<ManagerState>? StateUpdated;
 
@@ -30,9 +31,9 @@ public partial class MainWindow : Window
         {
             Interval = _config.RefreshInterval,
         };
-        _timer.Tick += (_, _) => Refresh();
+        _timer.Tick += async (_, _) => await RefreshAsync();
 
-        Loaded           += (_, _) => { _timer.Start(); Refresh(); };
+        Loaded           += async (_, _) => { _timer.Start(); await RefreshAsync(); };
         Closing          += OnClosing;
         SourceInitialized += OnSourceInitialized;
     }
@@ -53,25 +54,44 @@ public partial class MainWindow : Window
         Hide();
     }
 
-    private void Refresh()
+    private async Task RefreshAsync()
     {
-        var state = _statusReader.Read(_config);
-        _latestState = state;
-        StateUpdated?.Invoke(this, state);
+        // The status-file read and the per-symbol SQLite COUNT/MAX queries are disk I/O whose
+        // cost grows with history size, so they run on a background thread instead of the
+        // dispatcher. The re-entrancy guard drops a tick that arrives while a refresh is still
+        // in flight (slow disk / large DBs) rather than queueing ticks and freezing the UI.
+        if (_refreshing) return;
+        _refreshing = true;
+        try
+        {
+            var state = await Task.Run(() => _statusReader.Read(_config));
 
-        UpdateHeader(state);
-        UpdateBackfillBanner(state);
-        UpdateFooter(state);
-        UpdateGrid(state);
+            var symbols    = state.Status?.SubscribedSymbols ?? Array.Empty<string>();
+            var sqliteDir  = state.Status?.SqliteSinkPath ?? string.Empty;
+            var sqliteData = await Task.Run(() => SqliteRowReader.Read(sqliteDir, symbols));
 
-        // Symbols dialog needs the API base URL, which the Agent writes into status.json.
-        // If the Agent hasn't ever run we can't know where to fetch the catalog from, so
-        // grey the button out with a helpful tooltip.
-        var canPickSymbols = !string.IsNullOrWhiteSpace(state.Status?.ApiBaseUrl);
-        SymbolsButton.IsEnabled = canPickSymbols;
-        SymbolsButton.ToolTip = canPickSymbols
-            ? "Choose which instruments this Agent subscribes to"
-            : "Start the Agent first so the Manager knows which API to query.";
+            // await resumed on the dispatcher context, so the UI updates below are safe.
+            _latestState = state;
+            StateUpdated?.Invoke(this, state);
+
+            UpdateHeader(state);
+            UpdateBackfillBanner(state);
+            UpdateFooter(state);
+            UpdateGrid(state, sqliteData);
+
+            // Symbols dialog needs the API base URL, which the Agent writes into status.json.
+            // If the Agent hasn't ever run we can't know where to fetch the catalog from, so
+            // grey the button out with a helpful tooltip.
+            var canPickSymbols = !string.IsNullOrWhiteSpace(state.Status?.ApiBaseUrl);
+            SymbolsButton.IsEnabled = canPickSymbols;
+            SymbolsButton.ToolTip = canPickSymbols
+                ? "Choose which instruments this Agent subscribes to"
+                : "Start the Agent first so the Manager knows which API to query.";
+        }
+        finally
+        {
+            _refreshing = false;
+        }
     }
 
     private void OnSymbolsClick(object sender, RoutedEventArgs e)
@@ -197,11 +217,9 @@ public partial class MainWindow : Window
               (string.IsNullOrEmpty(state.Status.ScidSinkPath) ? "" : $"   SCID: {state.Status.ScidSinkPath}");
     }
 
-    private void UpdateGrid(ManagerState state)
+    private void UpdateGrid(ManagerState state, IReadOnlyList<SqliteRowReader.SymbolData> sqliteData)
     {
         var symbols = state.Status?.SubscribedSymbols ?? Array.Empty<string>();
-        var sqliteDir = state.Status?.SqliteSinkPath ?? string.Empty;
-        var sqliteData = SqliteRowReader.Read(sqliteDir, symbols);
         var bySymbol = sqliteData.ToDictionary(s => s.Symbol, StringComparer.OrdinalIgnoreCase);
 
         // Add / update rows.
