@@ -21,6 +21,9 @@
     { "canonicalSymbol": "JP10Y",    "cnbcSymbol": "JP10Y",  "category": "bonds" },
     { "canonicalSymbol": "JP30Y",    "cnbcSymbol": "JP30Y",  "category": "bonds" },
 
+    { "canonicalSymbol": "JP01Y_INV", "investingPid": 23892, "category": "bonds" },
+    { "canonicalSymbol": "JP02Y_INV", "investingPid": 23893, "category": "bonds" },
+
     { "canonicalSymbol": "DE01Y",    "investingPid": 23684,  "category": "bonds" },
     { "canonicalSymbol": "DE02Y",    "investingPid": 23685,  "category": "bonds" },
     { "canonicalSymbol": "DE03Y",    "investingPid": 23686,  "category": "bonds" },
