@@ -96,6 +96,7 @@
     { "canonicalSymbol": "FGBS",     "investingPid": 8900,   "category": "bonds" },
     { "canonicalSymbol": "FGBM",     "investingPid": 8899,   "category": "bonds" },
     { "canonicalSymbol": "BUND",     "investingPid": 8895,   "category": "bonds" },
+    { "canonicalSymbol": "JGB",      "investingPid": 8986,   "category": "bonds" },
     { "canonicalSymbol": "TIP",      "investingPid": 8941,   "category": "bonds" },
     { "canonicalSymbol": "TIPX",     "investingPid": 941561, "category": "bonds" },
     { "canonicalSymbol": "TLT",      "investingPid": 40654,  "category": "bonds" },
