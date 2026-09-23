@@ -2,22 +2,73 @@
 
 ## Dependencies
 
-| DLL | Purpose | Source |
+| DLL | Type | Purpose |
 |---|---|---|
-| **NCalc.dll** | Formula evaluation | [github.com/ncalc/ncalc/releases](https://github.com/ncalc/ncalc/releases) – download latest zip, grab `NCalc.dll` |
-| **System.Data.SQLite.dll** | Reads `.sqlite` price files | Already on disk: `C:\Program Files\NinjaTrader 8\bin64\` |
-| **SQLite.Interop.dll** | Native SQLite library (required by above) | Same folder as above |
+| **NCalc.dll** | managed | Formula evaluation — [github.com/ncalc/ncalc/releases](https://github.com/ncalc/ncalc/releases) |
+| **Antlr3.Runtime.dll** | managed | NCalc's own dependency — ships in the same NCalc zip. NCalc fails to load without it. |
+| **System.Data.SQLite.dll** | managed | Reads the `.sqlite` price files |
+| **SQLite.Interop.dll** | **native** | The actual SQLite engine that `System.Data.SQLite` P/Invokes |
 
-**SharpDX** is bundled with NinjaTrader – no action needed.
+**SharpDX** is bundled with NinjaTrader — no action needed.
+
+### Where to get System.Data.SQLite.dll + SQLite.Interop.dll
+
+NinjaTrader usually ships both next to `NinjaTrader.exe`. Find that folder with:
+
+```
+where /r "C:\Program Files\NinjaTrader 8" SQLite.Interop.dll
+```
+
+On most installs `NinjaTrader.exe` is in `C:\Program Files\NinjaTrader 8\bin\` (older docs said
+`bin64\` — that folder does not exist on current installs). You can also take the pair from the
+`System.Data.SQLite.Core` NuGet package, which lays them out as `x64\` and `x86\` subfolders.
+
+**Use the `x64` build** — NinjaTrader 8 is a 64-bit process.
+
+---
+
+## The SQLite.Interop.dll trap (read this)
+
+`System.Data.SQLite.dll` is only a *managed wrapper*. The real engine is the native
+`SQLite.Interop.dll`, and Windows resolves native DLLs from the **process folder**
+(`C:\Program Files\NinjaTrader 8\bin\`) — **not** from `bin\Custom`. So a machine where
+NinjaTrader happens to ship a copy beside the exe "just works", and one where it doesn't fails with:
+
+```
+Unable to load DLL 'SQLite.Interop.dll': The specified module could not be found.
+(Exception from HRESULT: 0x8007007E)
+```
+
+`YieldValueLine.cs` now handles this itself: before its first query it explicitly loads the DLL
+by full path (`EnsureSqliteInterop`), checking, in order:
+
+```
+<Documents>\NinjaTrader 8\bin\Custom\x64\SQLite.Interop.dll
+<Documents>\NinjaTrader 8\bin\Custom\SQLite.Interop.dll
+<NinjaTrader exe folder>\x64\SQLite.Interop.dll
+<NinjaTrader exe folder>\SQLite.Interop.dll
+```
+
+So you only need the native DLL to **exist** in `bin\Custom` (flat or in an `x64\` subfolder).
+It does **not** go in NinjaTrader's References list — it is not a .NET assembly.
 
 ---
 
 ## One-time setup (new machine)
 
 ### 1. Copy DLLs
-Copy all three DLLs to:
+Copy the three **managed** DLLs to `Documents\NinjaTrader 8\bin\Custom\`:
+
 ```
-Documents\NinjaTrader 8\bin\Custom\
+NCalc.dll
+Antlr3.Runtime.dll
+System.Data.SQLite.dll
+```
+
+Then copy the **native** one into the same folder (or an `x64\` subfolder of it):
+
+```
+SQLite.Interop.dll      (x64 build)
 ```
 
 ### 2. Copy the indicator file
@@ -108,5 +159,6 @@ NCalc supports standard math: `+`, `-`, `*`, `/`, `(`, `)`, `Abs()`, `Sqrt()`, `
 | Values stop updating in realtime | FileSystemWatcher restarted automatically; check NT8 Output window for `[YieldValueLine]` messages |
 | `NCalc.Expression` compile error | `NCalc.dll` not in `bin\Custom\` or not added to References |
 | `SQLiteConnection` compile error | `System.Data.SQLite.dll` not added to References |
+| `Unable to load DLL 'SQLite.Interop.dll'` (0x8007007E) | The **native** DLL is missing from `bin\Custom` (flat or `x64\`). It is NOT a Reference - just copy the x64 file there and restart NT. |
 | Button missing from toolbar | Check NT8 Output window for `[YieldValueLine] Toolbar button error:` |
 | Symbol not found warning | Symbol name in formula doesn't match the `.sqlite` filename – check Output window |

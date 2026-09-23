@@ -25,6 +25,7 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -317,8 +318,75 @@ namespace NinjaTrader.NinjaScript.Indicators.CSI
             }
         }
 
+        // ---------------------------------------------------------------
+        //  SQLite.Interop.dll preload
+        //
+        //  System.Data.SQLite is a *managed* wrapper that P/Invokes the native
+        //  SQLite.Interop.dll. Windows resolves native DLLs from the process
+        //  folder (C:\Program Files\NinjaTrader 8\bin\) - NOT from bin\Custom -
+        //  so on a machine where NinjaTrader doesn't happen to ship a copy next
+        //  to the exe you get:
+        //      Unable to load DLL 'SQLite.Interop.dll' (0x8007007E)
+        //
+        //  Loading it once by full path fixes that: the loader matches later
+        //  P/Invokes to the already-loaded module by name, so it never has to
+        //  search. Ship the matching x64 DLL beside the indicator (a flat copy
+        //  in bin\Custom is what a NinjaScript export/import produces).
+        // ---------------------------------------------------------------
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern IntPtr LoadLibraryW(string lpFileName);
+
+        private static bool _interopChecked;
+
+        private static void EnsureSqliteInterop()
+        {
+            if (_interopChecked) return;
+            _interopChecked = true;          // try once per session, success or not
+
+            string arch = IntPtr.Size == 8 ? "x64" : "x86";
+            var roots = new List<string>();
+
+            // NinjaTrader's own user-data dir (handles OneDrive-redirected Documents).
+            try { roots.Add(Path.Combine(NinjaTrader.Core.Globals.UserDataDir, "bin", "Custom")); }
+            catch { }
+
+            try
+            {
+                roots.Add(Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                    "NinjaTrader 8", "bin", "Custom"));
+            }
+            catch { }
+
+            try { roots.Add(AppDomain.CurrentDomain.BaseDirectory); } catch { }
+
+            foreach (string root in roots)
+            {
+                if (string.IsNullOrEmpty(root)) continue;
+                foreach (string candidate in new[]
+                         {
+                             Path.Combine(root, arch, "SQLite.Interop.dll"),
+                             Path.Combine(root, "SQLite.Interop.dll")
+                         })
+                {
+                    try
+                    {
+                        if (!File.Exists(candidate)) continue;
+                        if (LoadLibraryW(candidate) != IntPtr.Zero) return;
+                    }
+                    catch { }
+                }
+            }
+
+            // Nothing preloaded - fall through and let System.Data.SQLite do its own
+            // probing. If that fails too, SQLiteConnection throws and the caller
+            // already prints the message to the NT8 Output window.
+        }
+
         private static SortedList<long, double> ReadSqlite(string file)
         {
+            EnsureSqliteInterop();
+
             var result = new SortedList<long, double>();
             // Do NOT use "Read Only=True" here.  In WAL mode SQLite needs to access the
             // .sqlite-shm shared-memory file to build a consistent read snapshot.  Some
