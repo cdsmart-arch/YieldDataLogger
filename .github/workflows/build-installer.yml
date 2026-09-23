@@ -5,15 +5,20 @@ name: Build Windows Installer
 on:
   push:
     branches: [main]
-    paths:
-      - 'src/**'
-      - 'installer/**'
-      - '.github/workflows/build-installer.yml'
+    # No paths filter. GitHub applies path filters to tag pushes as well, and a tag
+    # that points at an existing commit carries no file changes -- so a filtered
+    # workflow would never fire for a `v*` tag, which is exactly when we cut a
+    # release. Public repo, so the extra runs cost nothing.
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 jobs:
   build-installer:
     runs-on: windows-latest
+    # action-gh-release creates the Release and uploads the installer asset.
+    permissions:
+      contents: write
 
     steps:
       # -----------------------------------------------------------------------
