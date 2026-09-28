@@ -113,6 +113,48 @@ internal sealed class AgentController
     }
 
     // -------------------------------------------------------------------------
+    // Restart  (stop + start)  - used by the Manager's "Reconnect" button
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Bounces the Agent so it builds a fresh hub connection. This is the manual
+    /// escape hatch for the case where the Agent is running but stuck Disconnected;
+    /// on reconnect the HistoryBackfillService fills whatever gap it missed.
+    /// </summary>
+    public static (bool Ok, string Message) Restart(AgentStatus? status)
+    {
+        var svc = FindService();
+        if (svc is not null)
+        {
+            try
+            {
+                if (svc.Status != ServiceControllerStatus.Stopped)
+                {
+                    svc.Stop();
+                    svc.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(20));
+                }
+
+                svc.Refresh();
+                svc.Start();
+                svc.WaitForStatus(ServiceControllerStatus.Running, TimeSpan.FromSeconds(20));
+                return (true, "Agent restarted - reconnecting to the hub.");
+            }
+            catch
+            {
+                // Insufficient privileges - bounce it through an elevated shell instead.
+                return RunElevated("cmd.exe",
+                    $"/c sc stop \"{ServiceName}\" & timeout /t 3 /nobreak >nul & sc start \"{ServiceName}\"");
+            }
+        }
+
+        // Dev fallback: console process.
+        var (stopOk, stopMsg) = Stop(status);
+        if (!stopOk) return (false, "Restart failed while stopping: " + stopMsg);
+        Thread.Sleep(1500);
+        return Start();
+    }
+
+    // -------------------------------------------------------------------------
     // Elevated helper
     // -------------------------------------------------------------------------
 

@@ -26,6 +26,9 @@ public sealed class TickHubClient : BackgroundService
     private readonly TickDispatcher _dispatcher;
     private readonly SubscriptionManager _subscriptions;
     private readonly ILogger<TickHubClient> _logger;
+
+    /// <summary>Released by the Closed handler to wake the reconnect loop.</summary>
+    private readonly SemaphoreSlim _closed = new(0);
     private HubConnection? _connection;
     private long _ticksReceived;
     private long _lastTickTicks;     // DateTime.UtcNow.Ticks of most recent tick, or 0
@@ -102,7 +105,7 @@ public sealed class TickHubClient : BackgroundService
                     opts.AccessTokenProvider = () => Task.FromResult<string?>(token);
                 }
             })
-            .WithAutomaticReconnect()
+            .WithAutomaticReconnect(new InfiniteRetryPolicy())
             .Build();
 
         _connection.On<TickPayload>("Tick", OnTick);
@@ -130,40 +133,57 @@ public sealed class TickHubClient : BackgroundService
         {
             _logger.LogWarning(ex, "Hub connection closed.");
             Volatile.Write(ref _lastError, ex?.Message ?? "connection closed");
+            // Wake the reconnect loop below. Without this the Agent stayed alive but
+            // permanently Disconnected once automatic reconnect gave up.
+            try { _closed.Release(); } catch (SemaphoreFullException) { }
             return Task.CompletedTask;
         };
 
-        // Outer retry loop: if even the first connect fails (server not up yet) we keep trying.
+        // Connect, then stay connected for the life of the service. If the connection
+        // ever closes for good - automatic reconnect exhausted, or a non-retryable
+        // close - we loop back and start a completely fresh connection instead of
+        // sitting there dead. The old code connected once, broke out of the loop and
+        // parked until shutdown, so a transient outage left the Agent "Running" but
+        // permanently Disconnected until someone restarted the service by hand.
         while (!stoppingToken.IsCancellationRequested)
         {
-            try
+            var connected = false;
+            while (!stoppingToken.IsCancellationRequested && !connected)
             {
-                await _connection.StartAsync(stoppingToken);
-                _logger.LogInformation("Hub connected ({ConnectionId}).", _connection.ConnectionId);
-                Volatile.Write(ref _lastError, null);
-
-                if (_subscribed.Length > 0)
+                try
                 {
-                    await _connection.InvokeAsync("Subscribe", _subscribed, stoppingToken);
-                    _logger.LogInformation("Subscribed to {Count} symbols.", _subscribed.Length);
-                }
-                break;
-            }
-            catch (OperationCanceledException) { return; }
-            catch (Exception ex)
-            {
-                var delay = Math.Max(1, _options.ReconnectDelaySeconds);
-                _logger.LogWarning(ex, "Hub connect failed; retrying in {Delay}s...", delay);
-                Volatile.Write(ref _lastError, ex.Message);
-                try { await Task.Delay(TimeSpan.FromSeconds(delay), stoppingToken); }
-                catch (OperationCanceledException) { return; }
-            }
-        }
+                    await _connection.StartAsync(stoppingToken);
+                    _logger.LogInformation("Hub connected ({ConnectionId}).", _connection.ConnectionId);
+                    Volatile.Write(ref _lastError, null);
 
-        // Wait until the host shuts us down.
-        var tcs = new TaskCompletionSource();
-        using var reg = stoppingToken.Register(() => tcs.TrySetResult());
-        await tcs.Task;
+                    if (_subscribed.Length > 0)
+                    {
+                        await _connection.InvokeAsync("Subscribe", _subscribed, stoppingToken);
+                        _logger.LogInformation("Subscribed to {Count} symbols.", _subscribed.Length);
+                    }
+                    connected = true;
+                }
+                catch (OperationCanceledException) { return; }
+                catch (Exception ex)
+                {
+                    var delay = Math.Max(1, _options.ReconnectDelaySeconds);
+                    _logger.LogWarning(ex, "Hub connect failed; retrying in {Delay}s...", delay);
+                    Volatile.Write(ref _lastError, ex.Message);
+                    try { await Task.Delay(TimeSpan.FromSeconds(delay), stoppingToken); }
+                    catch (OperationCanceledException) { return; }
+                }
+            }
+
+            if (stoppingToken.IsCancellationRequested) break;
+
+            // Park until the connection closes (Closed handler releases this), then
+            // fall through and build a fresh connection.
+            try { await _closed.WaitAsync(stoppingToken); }
+            catch (OperationCanceledException) { break; }
+
+            if (stoppingToken.IsCancellationRequested) break;
+            _logger.LogWarning("Hub connection closed for good; starting a fresh connection.");
+        }
 
         _subscriptions.Changed -= OnSubscriptionsChanged;
         try { await _connection.StopAsync(CancellationToken.None); }
@@ -230,4 +250,27 @@ public sealed class TickHubClient : BackgroundService
 
     /// <summary>Payload shape emitted by the server's SignalRPriceSink ("Tick" message).</summary>
     private sealed record TickPayload(string Symbol, double TsUnix, double Price, string Source);
+
+    /// <summary>
+    /// Retries forever. The default WithAutomaticReconnect() policy stops after 4
+    /// attempts (~1 minute) and then closes the connection permanently, which is how
+    /// the Agent ended up running-but-disconnected for two days after a brief outage.
+    /// An unattended data collector should never stop trying.
+    /// </summary>
+    private sealed class InfiniteRetryPolicy : IRetryPolicy
+    {
+        private static readonly TimeSpan[] Ramp =
+        {
+            TimeSpan.Zero,
+            TimeSpan.FromSeconds(2),
+            TimeSpan.FromSeconds(5),
+            TimeSpan.FromSeconds(10),
+            TimeSpan.FromSeconds(30),
+        };
+
+        public TimeSpan? NextRetryDelay(RetryContext retryContext) =>
+            retryContext.PreviousRetryCount < Ramp.Length
+                ? Ramp[retryContext.PreviousRetryCount]
+                : TimeSpan.FromSeconds(60);   // then every minute, forever
+    }
 }

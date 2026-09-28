@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Windows;
@@ -101,6 +101,34 @@ public partial class MainWindow : Window
 
         var win = new SubscriptionsWindow(_config, apiBase) { Owner = this };
         win.ShowDialog();
+    }
+
+    private async void OnReconnectClick(object sender, RoutedEventArgs e)
+    {
+        var original = ReconnectButton.Content;
+        ReconnectButton.IsEnabled = false;
+        ReconnectButton.Content   = "Reconnecting…";
+        try
+        {
+            // Service stop/start blocks for seconds, so keep it off the UI thread.
+            var status = _latestState?.Status;
+            var (ok, msg) = await Task.Run(() => AgentController.Restart(status));
+
+            if (!ok)
+                MessageBox.Show(msg, "Reconnect", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+            await RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("Reconnect failed: " + ex.Message, "Reconnect",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            ReconnectButton.Content   = original;
+            ReconnectButton.IsEnabled = true;
+        }
     }
 
     private void OnClearHistoryClick(object sender, RoutedEventArgs e)
