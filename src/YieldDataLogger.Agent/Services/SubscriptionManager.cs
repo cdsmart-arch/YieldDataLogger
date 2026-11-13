@@ -23,7 +23,15 @@ public sealed class SubscriptionManager
     private int _historyDays;
     private int _backfillDelayMs;
 
+    private ScidSettings _scid = new(null, null);
+
     public event EventHandler<SubscriptionChange>? Changed;
+
+    /// <summary>Raised when the Manager changes the Sierra folder or the .scid symbol set.</summary>
+    public event EventHandler<ScidSettings>? ScidChanged;
+
+    /// <summary>Sierra .scid settings from subscriptions.json (nulls = fall back to appsettings).</summary>
+    public ScidSettings Scid { get { lock (_gate) return _scid; } }
 
     /// <summary>Days of history to backfill (0 = use appsettings default).</summary>
     public int HistoryDays    { get { lock (_gate) return _historyDays;    } }
@@ -46,6 +54,7 @@ public sealed class SubscriptionManager
             initial = loaded.Symbols;
             _historyDays    = loaded.HistoryDays;
             _backfillDelayMs = loaded.BackfillDelayMs;
+            _scid = ScidSettings.From(loaded);
             _logger.LogInformation(
                 "Loaded {Count} subscriptions from {Path} (historyDays={Days}, backfillDelayMs={Delay}).",
                 loaded.Symbols.Count, store.FilePath, _historyDays, _backfillDelayMs);
@@ -108,6 +117,20 @@ public sealed class SubscriptionManager
         Changed?.Invoke(this, change);
     }
 
+    /// <summary>Applies Sierra .scid settings; raises <see cref="ScidChanged"/> only on a real change.</summary>
+    public void UpdateScid(ScidSettings next)
+    {
+        lock (_gate)
+        {
+            if (_scid.SameAs(next)) return;
+            _scid = next;
+        }
+        _logger.LogInformation("Sierra settings updated: folder={Folder} symbols={Symbols}.",
+            next.Folder ?? "(appsettings)",
+            next.Symbols is null ? "(appsettings)" : string.Join(",", next.Symbols));
+        ScidChanged?.Invoke(this, next);
+    }
+
     private static IEnumerable<string> Normalize(IEnumerable<string> symbols) =>
         symbols
             .Where(s => !string.IsNullOrWhiteSpace(s))
@@ -117,3 +140,24 @@ public sealed class SubscriptionManager
 
 /// <summary>Diff emitted on each subscription change. <paramref name="Current"/> is the full post-change set.</summary>
 public sealed record SubscriptionChange(string[] Added, string[] Removed, string[] Current);
+
+/// <summary>
+/// Sierra .scid settings as persisted by the Manager. <c>null</c> members mean "not set in
+/// subscriptions.json - use the appsettings defaults".
+/// </summary>
+public sealed record ScidSettings(string? Folder, IReadOnlyList<string>? Symbols)
+{
+    public static ScidSettings From(YieldDataLogger.Core.Models.AgentSubscriptions s) => new(
+        string.IsNullOrWhiteSpace(s.ScidFolder) ? null : s.ScidFolder.Trim(),
+        s.ScidSymbols?
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim().ToUpperInvariant())
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(x => x, StringComparer.Ordinal)
+            .ToArray());
+
+    public bool SameAs(ScidSettings other) =>
+        string.Equals(Folder, other.Folder, StringComparison.OrdinalIgnoreCase)
+        && (Symbols is null ? other.Symbols is null
+            : other.Symbols is not null && Symbols.SequenceEqual(other.Symbols, StringComparer.Ordinal));
+}

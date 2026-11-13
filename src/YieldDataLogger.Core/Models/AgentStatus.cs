@@ -67,6 +67,9 @@ public sealed record AgentStatus
     /// <summary>Absolute path the ScidSink is writing to (empty string if that sink is disabled).</summary>
     public string ScidSinkPath { get; init; } = string.Empty;
 
+    /// <summary>Symbols currently being written as .scid files (empty when the sink is idle).</summary>
+    public IReadOnlyList<string> ScidSymbols { get; init; } = Array.Empty<string>();
+
     /// <summary>Free-form last error message, if any (e.g. hub unreachable). Cleared on successful reconnect.</summary>
     public string? LastError { get; init; }
 

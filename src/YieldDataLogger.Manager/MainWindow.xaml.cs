@@ -242,7 +242,7 @@ public partial class MainWindow : Window
         FooterText.Text = state.Status is null
             ? "Waiting for agent to start…"
             : $"History: {(string.IsNullOrEmpty(state.Status.SqliteSinkPath) ? "(disabled)" : state.Status.SqliteSinkPath)}" +
-              (string.IsNullOrEmpty(state.Status.ScidSinkPath) ? "" : $"   SCID: {state.Status.ScidSinkPath}");
+              (string.IsNullOrEmpty(state.Status.ScidSinkPath) ? "" : $"   Sierra: {state.Status.ScidSinkPath} ({state.Status.ScidSymbols.Count} symbols)");
     }
 
     private void UpdateGrid(ManagerState state, IReadOnlyList<SqliteRowReader.SymbolData> sqliteData)

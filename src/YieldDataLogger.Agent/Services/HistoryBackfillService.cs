@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Data.SQLite;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -5,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using YieldDataLogger.Agent.Configuration;
+using YieldDataLogger.Core.Sinks;
 
 namespace YieldDataLogger.Agent.Services;
 
@@ -20,15 +22,32 @@ namespace YieldDataLogger.Agent.Services;
 ///
 /// Ticks that are already present are silently ignored (INSERT OR IGNORE on TIMESTAMP).
 /// This means the backfill is fully idempotent and safe to re-run.
+///
+/// The gap start is the latest row written *before* the current connection (minus a safety
+/// margin), not MAX(TIMESTAMP): live ticks start landing in SQLite the moment the hub
+/// connects, and using the newest row would skip right over the offline gap.
+///
+/// Symbols added while connected (Manager ticks a new instrument) are backfilled straight
+/// away rather than waiting for the next reconnect. When a backfilled symbol is also
+/// written to Sierra, the filled range is merged into its .scid file in timestamp order.
 /// </summary>
 public sealed class HistoryBackfillService : BackgroundService
 {
     private const int PageSize = 5_000;
 
+    /// <summary>
+    /// Slack subtracted from the connect time when looking for the last pre-connection row,
+    /// covering the poll lag below and modest clock skew between this PC and the server.
+    /// Overlap is harmless (INSERT OR IGNORE).
+    /// </summary>
+    private static readonly TimeSpan SessionMargin = TimeSpan.FromSeconds(60);
+
     private readonly AgentOptions _options;
     private readonly TickHubClient _hubClient;
     private readonly SubscriptionManager _subscriptions;
     private readonly BackfillTracker _tracker;
+    private readonly ScidSink _scid;
+    private readonly ConcurrentQueue<(string Symbol, double BeforeTs)> _added = new();
     private readonly HttpClient _http;
     private readonly ILogger<HistoryBackfillService> _logger;
 
@@ -37,6 +56,7 @@ public sealed class HistoryBackfillService : BackgroundService
         TickHubClient hubClient,
         SubscriptionManager subscriptions,
         BackfillTracker tracker,
+        ScidSink scid,
         IHttpClientFactory httpFactory,
         ILogger<HistoryBackfillService> logger)
     {
@@ -44,6 +64,7 @@ public sealed class HistoryBackfillService : BackgroundService
         _hubClient     = hubClient;
         _subscriptions = subscriptions;
         _tracker       = tracker;
+        _scid          = scid;
         _http          = httpFactory.CreateClient("backfill");
         _logger        = logger;
     }
@@ -72,6 +93,14 @@ public sealed class HistoryBackfillService : BackgroundService
         _http.BaseAddress = new Uri(apiBase);
         _http.Timeout     = TimeSpan.FromMinutes(5);
 
+        // Newly added symbols: rows already in SQLite (e.g. from an earlier subscription)
+        // mark where their gap starts; anything newer is this session's live data.
+        _subscriptions.Changed += (_, change) =>
+        {
+            var before = UnixNow() - SessionMargin.TotalSeconds;
+            foreach (var s in change.Added) _added.Enqueue((s, before));
+        };
+
         // Run at below-normal priority so the backfill never starves the rest of the system.
         System.Threading.Thread.CurrentThread.Priority = System.Threading.ThreadPriority.BelowNormal;
 
@@ -83,9 +112,13 @@ public sealed class HistoryBackfillService : BackgroundService
 
             if (stoppingToken.IsCancellationRequested) return;
 
+            // A full pass covers everything currently subscribed, including queued additions.
+            _added.Clear();
+            var sessionStart = UnixNow() - SessionMargin.TotalSeconds;
+
             try
             {
-                await RunBackfillAsync(stoppingToken).ConfigureAwait(false);
+                await RunBackfillAsync(sessionStart, stoppingToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) { return; }
             catch (Exception ex)
@@ -105,7 +138,7 @@ public sealed class HistoryBackfillService : BackgroundService
     // Internal helpers
     // -------------------------------------------------------------------------
 
-    private async Task RunBackfillAsync(CancellationToken ct)
+    private async Task RunBackfillAsync(double sessionStart, CancellationToken ct)
     {
         var sqlitePath = Environment.ExpandEnvironmentVariables(_options.Sinks.Sqlite.Path);
         var symbols    = _subscriptions.Current.ToList();   // materialise so we can index
@@ -126,7 +159,7 @@ public sealed class HistoryBackfillService : BackgroundService
 
             try
             {
-                totalInserted += await BackfillSymbolAsync(sqlitePath, symbol, ct).ConfigureAwait(false);
+                totalInserted += await BackfillSymbolAsync(sqlitePath, symbol, sessionStart, ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException) { break; }
             catch (Exception ex)
@@ -152,13 +185,35 @@ public sealed class HistoryBackfillService : BackgroundService
             "History backfill complete. {Total} new tick(s) written.", totalInserted);
     }
 
+    /// <summary>Backfills symbols that were added while connected (see <see cref="_added"/>).</summary>
+    private async Task DrainAddedAsync(CancellationToken ct)
+    {
+        if (_added.IsEmpty) return;
+        var sqlitePath = Environment.ExpandEnvironmentVariables(_options.Sinks.Sqlite.Path);
+        while (!ct.IsCancellationRequested && _added.TryDequeue(out var item))
+        {
+            if (!_subscriptions.Current.Contains(item.Symbol)) continue;   // removed again
+            _tracker.Update($"Backfilling {item.Symbol} (newly added)...");
+            try
+            {
+                await BackfillSymbolAsync(sqlitePath, item.Symbol, item.BeforeTs, ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Backfill failed for newly added symbol {Symbol}.", item.Symbol);
+            }
+        }
+        _tracker.Clear();
+    }
+
     private async Task<int> BackfillSymbolAsync(
-        string sqlitePath, string symbol, CancellationToken ct)
+        string sqlitePath, string symbol, double sessionStart, CancellationToken ct)
     {
         var file = Path.Combine(sqlitePath, $"{symbol}.sqlite");
         EnsureTable(file);
 
-        var latestTs = GetLatestTimestamp(file);
+        var latestTs = GetLatestTimestamp(file, sessionStart);
 
         // On a fresh install latestTs == 0, so cap it to HistoryDays ago.
         // For existing files latestTs is recent, so it will be > the cap and wins.
@@ -211,24 +266,31 @@ public sealed class HistoryBackfillService : BackgroundService
         while (fetched == PageSize && !ct.IsCancellationRequested);
 
         if (inserted > 0)
+        {
             _logger.LogInformation("Backfill {Symbol}: inserted {Count} tick(s) (from ts {From:F0}).",
-                symbol, inserted, latestTs);
+                symbol, inserted, fromTs);
+
+            // Splice the filled range into the Sierra file in order (no-op if not a Sierra symbol).
+            _scid.MergeFromHistory(symbol, fromTs);
+        }
 
         return inserted;
     }
 
     /// <summary>
-    /// Returns the latest TIMESTAMP (unix seconds) already in the local SQLite file,
-    /// or 0 if the file does not exist / is empty.
+    /// Returns the latest TIMESTAMP (unix seconds) in the local SQLite file that is older than
+    /// <paramref name="beforeTs"/> - i.e. the last row written before this connection - or 0
+    /// if there is none.
     /// </summary>
-    private static double GetLatestTimestamp(string file)
+    private static double GetLatestTimestamp(string file, double beforeTs)
     {
         if (!File.Exists(file)) return 0;
         try
         {
             using var cn  = Open(file);
             using var cmd = new SQLiteCommand(
-                "SELECT MAX(TIMESTAMP) FROM PriceData", cn);
+                "SELECT MAX(TIMESTAMP) FROM PriceData WHERE TIMESTAMP < @BEFORE", cn);
+            cmd.Parameters.AddWithValue("@BEFORE", beforeTs);
             var result = cmd.ExecuteScalar();
             return result is DBNull or null ? 0 : Convert.ToDouble(result);
         }
@@ -341,6 +403,7 @@ public sealed class HistoryBackfillService : BackgroundService
         while (!ct.IsCancellationRequested &&
                _hubClient.ConnectionState == HubConnectionState.Connected)
         {
+            await DrainAddedAsync(ct).ConfigureAwait(false);
             await Task.Delay(2_000, ct).ConfigureAwait(false);
         }
     }
@@ -360,6 +423,8 @@ public sealed class HistoryBackfillService : BackgroundService
         var idx = hub.IndexOf("/hubs/", StringComparison.OrdinalIgnoreCase);
         return idx > 0 ? hub[..idx] : string.Empty;
     }
+
+    private static double UnixNow() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000d;
 
     // JSON shape returned by GET /api/ticks/{symbol}
     private sealed record TickDto(string Symbol, double TsUnix, double Price, string Source);

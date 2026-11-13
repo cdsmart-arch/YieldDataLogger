@@ -33,6 +33,20 @@ public sealed record AgentSubscriptions
     /// </summary>
     public int BackfillDelayMs { get; init; } = 0;
 
+    /// <summary>
+    /// Subset of <see cref="Symbols"/> to also write as Sierra Chart intraday files
+    /// (<c>_SYMBOL.scid</c>) into <see cref="ScidFolder"/>. <c>null</c> means "never set by the
+    /// Manager" - the Agent then falls back to <c>Sinks:Scid:AllowedSymbols</c> in appsettings.
+    /// An empty list means "write no .scid files".
+    /// </summary>
+    public IReadOnlyList<string>? ScidSymbols { get; init; }
+
+    /// <summary>
+    /// Sierra Chart Data folder (e.g. <c>C:\SierraChart\Data</c>). <c>null</c>/empty means
+    /// "use <c>Sinks:Scid:Path</c> from appsettings".
+    /// </summary>
+    public string? ScidFolder { get; init; }
+
     /// <summary>UTC timestamp of the most recent edit. Useful for diagnostics / "last saved".</summary>
     public DateTime UpdatedAtUtc { get; init; }
 }

@@ -79,6 +79,7 @@ public sealed class SubscriptionWatcherService : BackgroundService
                     continue;
                 }
                 _manager.UpdateTo(loaded.Symbols, loaded.HistoryDays, loaded.BackfillDelayMs);
+                _manager.UpdateScid(ScidSettings.From(loaded));
             }
             catch (Exception ex)
             {

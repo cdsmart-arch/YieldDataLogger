@@ -45,21 +45,35 @@ builder.Services.AddSingleton<IPriceSink>(sp =>
     return new SqliteSink(path, logger);
 });
 
-builder.Services.AddSingleton<IPriceSink>(sp =>
+// Sierra Chart .scid sink: always registered so the Manager can switch it on/off live.
+// Which symbols get a .scid file, and which Sierra Data folder they go into, come from
+// subscriptions.json (Manager's Subscriptions window); appsettings Sinks:Scid is only the
+// fallback for installs where the Manager has never set them. Registered after SqliteSink
+// on purpose: the dispatcher writes sinks in order, so a tick is already in SQLite when the
+// .scid sink sees it - which is what lets it seed/merge from SQLite without duplicates.
+builder.Services.AddSingleton<ScidSink>(sp =>
 {
-    var opts = sp.GetRequiredService<IOptions<AgentOptions>>().Value.Sinks.Scid;
-    var logger = sp.GetRequiredService<ILogger<ScidSink>>();
-    if (!opts.Enabled)
+    var agent   = sp.GetRequiredService<IOptions<AgentOptions>>().Value;
+    var subs    = sp.GetRequiredService<SubscriptionManager>();
+    var logger  = sp.GetRequiredService<ILogger<ScidSink>>();
+    var history = agent.Sinks.Sqlite.Enabled
+        ? Environment.ExpandEnvironmentVariables(agent.Sinks.Sqlite.Path)
+        : null;
+
+    (string Folder, string[] Symbols) Resolve(ScidSettings s) => (
+        Environment.ExpandEnvironmentVariables(s.Folder ?? agent.Sinks.Scid.Path),
+        s.Symbols?.ToArray() ?? (agent.Sinks.Scid.Enabled ? agent.Sinks.Scid.AllowedSymbols : Array.Empty<string>()));
+
+    var initial = Resolve(subs.Scid);
+    var sink = new ScidSink(initial.Folder, initial.Symbols, logger, history);
+    subs.ScidChanged += (_, s) =>
     {
-        logger.LogInformation("ScidSink disabled");
-        return new NoopSink("scid(disabled)");
-    }
-    var path = Environment.ExpandEnvironmentVariables(opts.Path);
-    Directory.CreateDirectory(path);
-    logger.LogInformation("ScidSink path: {Path} allowed={Allowed}", path,
-        opts.AllowedSymbols.Length == 0 ? "(none)" : string.Join(",", opts.AllowedSymbols));
-    return new ScidSink(path, opts.AllowedSymbols, logger);
+        var next = Resolve(s);
+        sink.Configure(next.Folder, next.Symbols);
+    };
+    return sink;
 });
+builder.Services.AddSingleton<IPriceSink>(sp => sp.GetRequiredService<ScidSink>());
 
 // Subscription plumbing: store (file IO) -> manager (in-memory + events) -> watcher (tail the
 // file, push changes through the manager). Order matters for construction only - the manager

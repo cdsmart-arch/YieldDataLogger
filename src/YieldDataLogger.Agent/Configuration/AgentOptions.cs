@@ -95,8 +95,13 @@ public sealed class SqliteSinkOptions
     public string Path { get; set; } = "%ProgramData%\\YieldDataLogger\\Yields";
 }
 
+/// <summary>
+/// Fallback Sierra Chart settings. Once the Manager's Subscriptions window has saved a Sierra
+/// folder / symbol selection into subscriptions.json, those values win and these are ignored.
+/// </summary>
 public sealed class ScidSinkOptions
 {
+    /// <summary>Only consulted while subscriptions.json has no Sierra symbol selection.</summary>
     public bool Enabled { get; set; } = false;
     /// <summary>Sierra Chart Data folder. %ENV% variables are expanded.</summary>
     public string Path { get; set; } = "C:\\SierraChart\\Data";

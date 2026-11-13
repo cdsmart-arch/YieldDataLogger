@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using YieldDataLogger.Agent.Configuration;
 using YieldDataLogger.Collector.Pipeline;
 using YieldDataLogger.Core.Models;
+using YieldDataLogger.Core.Sinks;
 
 namespace YieldDataLogger.Agent.Services;
 
@@ -27,6 +28,7 @@ public sealed class StatusWriterService : BackgroundService
     private readonly TickHubClient _hub;
     private readonly TickDispatcher _dispatcher;
     private readonly BackfillTracker _backfillTracker;
+    private readonly ScidSink _scid;
     private readonly ILogger<StatusWriterService> _logger;
     private readonly DateTime _startedAtUtc = DateTime.UtcNow;
     private readonly int _pid = Environment.ProcessId;
@@ -39,12 +41,14 @@ public sealed class StatusWriterService : BackgroundService
         TickHubClient hub,
         TickDispatcher dispatcher,
         BackfillTracker backfillTracker,
+        ScidSink scid,
         ILogger<StatusWriterService> logger)
     {
         _options         = options.Value;
         _hub             = hub;
         _dispatcher      = dispatcher;
         _backfillTracker = backfillTracker;
+        _scid            = scid;
         _logger          = logger;
     }
 
@@ -65,9 +69,6 @@ public sealed class StatusWriterService : BackgroundService
         // Resolved sink paths for display only - the Manager uses these to locate SQLite files.
         var sqliteSinkPath = _options.Sinks.Sqlite.Enabled
             ? Environment.ExpandEnvironmentVariables(_options.Sinks.Sqlite.Path)
-            : string.Empty;
-        var scidSinkPath = _options.Sinks.Scid.Enabled
-            ? Environment.ExpandEnvironmentVariables(_options.Sinks.Scid.Path)
             : string.Empty;
 
         var interval = TimeSpan.FromSeconds(Math.Max(1, cfg.IntervalSeconds));
@@ -99,7 +100,9 @@ public sealed class StatusWriterService : BackgroundService
                     TicksDeduped      = _dispatcher.TicksDeduped,
                     TicksDispatched   = _dispatcher.TicksDispatched,
                     SqliteSinkPath    = sqliteSinkPath,
-                    ScidSinkPath      = scidSinkPath,
+                    // Live values: the Manager can change the Sierra folder/symbols at runtime.
+                    ScidSinkPath      = _scid.AllowedSymbols.Count > 0 ? _scid.Folder : string.Empty,
+                    ScidSymbols       = _scid.AllowedSymbols.OrderBy(x => x).ToArray(),
                     LastError         = _hub.LastError,
                     BackfillStatus    = _backfillTracker.Status,
                 };
