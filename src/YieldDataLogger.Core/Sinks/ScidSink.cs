@@ -221,12 +221,58 @@ public sealed class ScidSink : IPriceSink
         if (created) GrantUsersModify(state.File);
         state.Initialized = true;
 
-        if (records == 0 && _historyDirectory is not null)
+        if (_historyDirectory is null) return;
+
+        if (records == 0)
         {
             MergeLocked(symbol, state, long.MinValue);
             _logger.LogInformation("ScidSink seeded {File} from history ({Count} records).",
                 state.File, CountRecords(state.File));
         }
+        else
+        {
+            ReconcileLocked(symbol, state);
+        }
+    }
+
+    /// <summary>
+    /// An existing file (e.g. left by the legacy YieldLoggerUI app, or written while the
+    /// Agent was offline) may be missing ticks that SQLite has. Compare record counts over
+    /// SQLite's time range; if the file has fewer, re-derive that range from SQLite. Records
+    /// older than SQLite's history are kept, so legacy data survives. Caller holds the gate.
+    /// </summary>
+    private void ReconcileLocked(string symbol, SymbolState state)
+    {
+        var sqliteFile = Path.Combine(_historyDirectory!, symbol + ".sqlite");
+        if (!File.Exists(sqliteFile)) return;
+
+        double minTs, maxTs;
+        long sqliteCount;
+        using (var cn = new SQLiteConnection($"Data Source={sqliteFile};Version=3;"))
+        {
+            cn.Open();
+            using var cmd = cn.CreateCommand();
+            cmd.CommandText = "SELECT COUNT(*), MIN(TIMESTAMP), MAX(TIMESTAMP) FROM PriceData";
+            using var r = cmd.ExecuteReader();
+            if (!r.Read() || r.IsDBNull(1)) return;
+            sqliteCount = r.GetInt64(0);
+            minTs = r.GetDouble(1);
+            maxTs = r.GetDouble(2);
+        }
+
+        long fileCount;
+        using (var fs = OpenShared(state.File, FileMode.Open))
+        {
+            var n = (fs.Length - HeaderSize) / RecordSize;
+            fileCount = LowerBound(fs, n, ToSierraUs(maxTs) + 1) - LowerBound(fs, n, ToSierraUs(minTs));
+        }
+
+        if (fileCount >= sqliteCount) return;
+
+        _logger.LogInformation(
+            "ScidSink {File} has {FileCount} records in the history range vs {SqliteCount} in SQLite - filling from history.",
+            state.File, fileCount, sqliteCount);
+        MergeLocked(symbol, state, ToSierraUs(minTs));
     }
 
     /// <summary>
