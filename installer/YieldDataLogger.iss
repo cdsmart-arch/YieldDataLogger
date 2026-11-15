@@ -44,6 +44,11 @@ SolidCompression         = yes
 ; Minimum Windows version: 10
 MinVersion               = 10.0
 
+; We stop the Agent service and close the Manager ourselves in PrepareToInstall (see
+; [Code]). Restart Manager's own "files in use" detection hung indefinitely on
+; "Preparing to Install" while the Agent service held its exe open, so it's disabled.
+CloseApplications        = no
+
 ; Uninstaller
 UninstallDisplayName     = {#AppName}
 UninstallDisplayIcon     = {app}\Manager\{#ManagerExe}
@@ -170,6 +175,36 @@ var
 begin
   Exec('sc.exe', 'query "{#ServiceName}"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Result := (ResultCode = 0);
+end;
+
+// Upgrade: release our files BEFORE they are overwritten. The [Run] section's
+// sc stop only runs after the file copy, which is too late - a running Agent
+// keeps YieldDataLogger.Agent.exe locked. Stop the service, wait for its process
+// to actually exit (SCM reports Stopped slightly before the process is gone),
+// force-kill as a last resort, and close the Manager tray app (relaunched at the
+// end of setup).
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode, i: Integer;
+begin
+  Result := '';
+  Exec('taskkill.exe', '/f /im "{#ManagerExe}"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+
+  if ServiceExists() then
+  begin
+    Exec('sc.exe', 'stop "{#ServiceName}"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    for i := 1 to 30 do
+    begin
+      // find returns 0 while the Agent process is still listed.
+      Exec(ExpandConstant('{cmd}'),
+        '/c tasklist /fi "imagename eq {#AgentExe}" /nh | find /i "{#AgentExe}"',
+        '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+      if ResultCode <> 0 then
+        Break;
+      Sleep(1000);
+    end;
+    Exec('taskkill.exe', '/f /im "{#AgentExe}"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  end;
 end;
 
 // Add a custom wizard page after the Components selection that collects the
