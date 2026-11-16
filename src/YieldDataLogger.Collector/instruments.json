@@ -118,7 +118,7 @@
     { "canonicalSymbol": "USDCHF",   "cnbcSymbol": "CHF=",   "category": "fx" },
     { "canonicalSymbol": "AUDJPY",   "cnbcSymbol": "AUDJPY=", "category": "fx" },
     { "canonicalSymbol": "GBPJPY",   "cnbcSymbol": "GBPJPY=", "category": "fx" },
-    { "canonicalSymbol": "EURGBP",   "cnbcSymbol": "EURGBP=", "category": "fx" },
+    { "canonicalSymbol": "EURGBP",   "investingPid": 6,      "category": "fx" },
     { "canonicalSymbol": "CHFUSD",   "investingPid": 1560,   "category": "fx" },
     { "canonicalSymbol": "JPYUSD",   "investingPid": 1910,   "category": "fx" },
     { "canonicalSymbol": "CADUSD",   "investingPid": 1538,   "category": "fx" },
@@ -148,7 +148,7 @@
     { "canonicalSymbol": "VIXM",     "cnbcSymbol": "VIXM",   "category": "vol" },
     { "canonicalSymbol": "VIXY",     "cnbcSymbol": "VIXY",   "category": "vol" },
 
-    { "canonicalSymbol": "GOLD",     "cnbcSymbol": "XAU=",   "category": "commodity" },
+    { "canonicalSymbol": "GOLD",     "investingPid": 68,     "category": "commodity" },
     { "canonicalSymbol": "SILVER",   "cnbcSymbol": "XAG=",   "category": "commodity" },
     { "canonicalSymbol": "COPPER",   "investingPid": 8831,   "category": "commodity" },
     { "canonicalSymbol": "PLATINUM", "investingPid": 8910,   "category": "commodity" },
