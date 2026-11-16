@@ -6,20 +6,23 @@ using YieldDataLogger.ExchangeFeed.Feeds;
 namespace YieldDataLogger.ExchangeFeed.Binance;
 
 /// <summary>
-/// Binance USDⓈ-M aggTrade stream. Since the 2026 routing change aggTrade is served under
-/// /market (the legacy /ws path no longer carries it). No subscribe message: the stream is in
+/// Binance aggTrade stream (USDⓈ-M futures: /market path since the 2026 routing change - the
+/// legacy /ws path no longer carries aggTrade; spot: stream.binance.com:9443/ws). No subscribe message: the stream is in
 /// the URL, so the connection is live once open. Binance sends protocol pings (answered by
 /// ClientWebSocket) and drops connections at 24 h, so we reconnect at 23 h. Quiet contracts
 /// can go minutes without a trade, so the silence limit is generous.
 /// </summary>
 public sealed class BinanceTradeStream : WebSocketTradeStream
 {
-    public BinanceTradeStream(string symbol, ILogger logger) : base(symbol, logger)
+    private readonly BinanceMarket _market;
+
+    public BinanceTradeStream(string symbol, BinanceMarket market, ILogger logger) : base(symbol, logger)
     {
-        Endpoint = new Uri($"wss://fstream.binance.com/market/ws/{symbol.ToLowerInvariant()}@aggTrade");
+        _market  = market;
+        Endpoint = new Uri($"{market.WebSocketBase}{symbol.ToLowerInvariant()}@aggTrade");
     }
 
-    protected override string Exchange => "Binance";
+    protected override string Exchange => _market.Exchange;
     protected override Uri Endpoint { get; }
     protected override bool LiveOnOpen => true;
     protected override TimeSpan SilenceLimit => TimeSpan.FromMinutes(10);
@@ -32,7 +35,7 @@ public sealed class BinanceTradeStream : WebSocketTradeStream
         return new[]
         {
             new ExchangeTrade(
-                root.GetProperty("T").GetInt64() * 1000,
+                BinanceClient.ToUnixUs(root.GetProperty("T").GetInt64()),
                 double.Parse(root.GetProperty("p").GetString()!, CultureInfo.InvariantCulture),
                 double.Parse(root.GetProperty("q").GetString()!, CultureInfo.InvariantCulture),
                 IsBuy: !root.GetProperty("m").GetBoolean(),

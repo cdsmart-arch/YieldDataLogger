@@ -93,7 +93,8 @@ public sealed class FeedSupervisor : BackgroundService
         var token = _feedsCts.Token;
         var feeds = new List<TradeFeed>();
         var bybit   = new BybitClient(_http.CreateClient("exchange"));
-        var binance = new BinanceClient(_http.CreateClient("exchange"));
+        var binance = new BinanceClient(_http.CreateClient("exchange"), BinanceMarket.UsdMFutures);
+        var spot    = new BinanceClient(_http.CreateClient("exchange"), BinanceMarket.Spot);
 
         void Start(ExchangeConfig ex, string exchange, Func<string, IExchangeSource> source)
         {
@@ -111,6 +112,7 @@ public sealed class FeedSupervisor : BackgroundService
 
         Start(cfg.Bybit,   "Bybit",   s => new BybitSource(s, bybit, _loggers.CreateLogger($"Bybit.{s}")));
         Start(cfg.Binance, "Binance", s => new BinanceSource(s, binance, _loggers.CreateLogger($"Binance.{s}")));
+        Start(cfg.BinanceSpot, "BinanceSpot", s => new BinanceSource(s, spot, _loggers.CreateLogger($"BinanceSpot.{s}")));
         _feeds = feeds;
     }
 

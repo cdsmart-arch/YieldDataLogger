@@ -4,7 +4,7 @@ using YieldDataLogger.ExchangeFeed.Feeds;
 namespace YieldDataLogger.ExchangeFeed.Binance;
 
 /// <summary>
-/// Binance USDⓈ-M perpetuals. History: daily aggTrades archive. Gap fill: real aggTrades
+/// Binance USDⓈ-M perpetuals or spot (see <see cref="BinanceMarket"/>). History: daily aggTrades archive. Gap fill: real aggTrades
 /// with side from REST - first located by time (1 h windows), then paged forward by id up to
 /// now - so gaps don't need repairing. Only a gap older than <see cref="MaxRestGap"/> is left
 /// to the archive.
@@ -24,19 +24,19 @@ public sealed class BinanceSource : IExchangeSource
         _logger = logger;
     }
 
-    public string Exchange => "Binance";
+    public string Exchange => _client.Market.Exchange;
     public string Symbol { get; }
 
     public Task<SymbolInfo> GetSymbolInfoAsync(CancellationToken ct) => _client.GetSymbolInfoAsync(Symbol, ct);
 
-    public string ArchiveFileName(DateOnly day) => $"binance-{Symbol}-aggTrades-{day:yyyy-MM-dd}.zip";
+    public string ArchiveFileName(DateOnly day) => $"{Exchange.ToLowerInvariant()}-{Symbol}-aggTrades-{day:yyyy-MM-dd}.zip";
 
     public Task<bool> DownloadDayAsync(DateOnly day, string destination, CancellationToken ct) =>
         _client.DownloadDayAsync(Symbol, day, destination, ct);
 
     public IReadOnlyList<ExchangeTrade> ReadArchive(string path) => BinanceClient.ReadArchive(path);
 
-    public ITradeStream CreateStream(ILogger logger) => new BinanceTradeStream(Symbol, logger);
+    public ITradeStream CreateStream(ILogger logger) => new BinanceTradeStream(Symbol, _client.Market, logger);
 
     public async Task FillGapAsync(GapContext gap, CancellationToken ct)
     {
@@ -70,6 +70,6 @@ public sealed class BinanceSource : IExchangeSource
             if (page.Count < 1000) break;
         }
         if (pages > 0)
-            _logger.LogInformation("Binance {Symbol}: gap filled with real aggTrades ({Pages} pages)", Symbol, pages + 1);
+            _logger.LogInformation("{Exchange} {Symbol}: gap filled with real aggTrades ({Pages} pages)", Exchange, Symbol, pages + 1);
     }
 }

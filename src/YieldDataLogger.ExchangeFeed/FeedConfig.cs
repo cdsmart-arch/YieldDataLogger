@@ -43,6 +43,13 @@ public sealed record FeedConfig
         HistoryDaysBySymbol = new() { ["COPPERUSDT"] = 90 },
     };
 
+    /// <summary>Binance spot (aggTrades), e.g. EURUSDT. Off unless symbols are listed. Files: _{SYMBOL}_BINANCESPOT.scid.</summary>
+    public ExchangeConfig BinanceSpot { get; init; } = new()
+    {
+        Symbols     = [],
+        HistoryDays = 30,
+    };
+
     public static readonly JsonSerializerOptions Json = new()
     {
         PropertyNamingPolicy        = JsonNamingPolicy.CamelCase,
