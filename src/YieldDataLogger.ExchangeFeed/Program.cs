@@ -3,7 +3,7 @@ using Microsoft.Extensions.Hosting;
 using YieldDataLogger.Core.Logging;
 using YieldDataLogger.ExchangeFeed;
 
-// CSI Exchange Feed: a standalone Windows service that streams exchange trades (Bybit today)
+// CSI Exchange Feed: a standalone Windows service that streams exchange trades (Bybit, Binance)
 // straight into Sierra Chart .scid files with real volume and aggressor side. Independent of
 // the YieldDataLogger Agent - own service, own config (ProgramData\...\ExchangeFeed\config.json),
 // own status file, own installer. Shares only the .scid writer in YieldDataLogger.Core.
@@ -16,7 +16,7 @@ var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
 builder.Services.AddWindowsService(o => o.ServiceName = "YieldDataLogger.ExchangeFeed");
 builder.Services.Configure<ServiceOptions>(builder.Configuration.GetSection(ServiceOptions.SectionName));
 
-builder.Services.AddHttpClient("bybit", http =>
+builder.Services.AddHttpClient("exchange", http =>
 {
     http.Timeout = TimeSpan.FromMinutes(2);
     http.DefaultRequestHeaders.UserAgent.ParseAdd("CSI-ExchangeFeed/1.0");

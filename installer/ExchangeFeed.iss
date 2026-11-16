@@ -1,13 +1,13 @@
 ; ---------------------------------------------------------------------------
 ; CSI Exchange Feed - Inno Setup installer
-; Standalone Windows service that streams exchange trades (Bybit XAUUSDT, ...) into
+; Standalone Windows service that streams exchange trades (Bybit, Binance) into
 ; Sierra Chart .scid files with volume and bid/ask side. Separate from the
 ; YieldDataLogger installer on purpose: it installs, updates and uninstalls on its
 ; own and never stops or touches the YieldDataLogger Agent.
 ; ---------------------------------------------------------------------------
 
 #define AppName      "CSI Exchange Feed"
-#define AppVersion   "1.0"
+#define AppVersion   "1.1"
 #define AppPublisher "cdsmart-arch"
 #define AppURL       "https://github.com/cdsmart-arch/YieldDataLogger"
 #define ServiceName  "YieldDataLogger.ExchangeFeed"
@@ -61,7 +61,7 @@ Filename: "sc.exe"; \
   Parameters: "create ""{#ServiceName}"" binPath= """"""{app}\{#FeedExe}"""""" start= auto DisplayName= ""CSI Exchange Feed"""; \
   Flags: runhidden waituntilterminated; StatusMsg: "Registering Exchange Feed service..."
 Filename: "sc.exe"; \
-  Parameters: "description ""{#ServiceName}"" ""Streams exchange trades (Bybit) into Sierra Chart .scid files with volume and bid/ask side."""; \
+  Parameters: "description ""{#ServiceName}"" ""Streams exchange trades (Bybit, Binance) into Sierra Chart .scid files with volume and bid/ask side."""; \
   Flags: runhidden waituntilterminated
 ; Restart automatically after a crash (5s / 10s / 30s).
 Filename: "sc.exe"; Parameters: "failure ""{#ServiceName}"" reset= 86400 actions= restart/5000/restart/10000/restart/30000"; \
@@ -122,7 +122,7 @@ begin
     'Sierra Chart Data folder',
     'Where should the .scid files be written?',
     'Pick the Data folder of the Sierra Chart install that should receive the exchange feed ' +
-    '(for example C:\SierraChart\Data). Bybit XAUUSDT will appear in Sierra as symbol _XAUUSDT_BYBIT. ' +
+    '(for example C:\SierraChart\Data). Symbols appear in Sierra as _XAUUSDT_BYBIT, _XAUUSDT_BINANCE and _COPPERUSDT_BINANCE. ' +
     'You can change this later via Start menu > CSI Exchange Feed > Edit Exchange Feed settings.',
     False, '');
   SierraPage.Add('');
@@ -157,7 +157,14 @@ begin
       '    "enabled": true,' + #13#10 +
       '    "symbols": [ "XAUUSDT" ],' + #13#10 +
       '    "historyDays": 90,' + #13#10 +
-      '    "volumeMultiplier": 1000' + #13#10 +
+      '    "volumeMultiplier": 0' + #13#10 +
+      '  },' + #13#10 +
+      '  "binance": {' + #13#10 +
+      '    "enabled": true,' + #13#10 +
+      '    "symbols": [ "XAUUSDT", "COPPERUSDT" ],' + #13#10 +
+      '    "historyDays": 30,' + #13#10 +
+      '    "historyDaysBySymbol": { "COPPERUSDT": 90 },' + #13#10 +
+      '    "volumeMultiplier": 0' + #13#10 +
       '  }' + #13#10 +
       '}' + #13#10, False) then
       MsgBox('Could not write ' + ConfigPath() + '. The service will create a default one.', mbError, MB_OK);

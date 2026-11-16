@@ -2,7 +2,9 @@ using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using YieldDataLogger.ExchangeFeed.Binance;
 using YieldDataLogger.ExchangeFeed.Bybit;
+using YieldDataLogger.ExchangeFeed.Feeds;
 
 namespace YieldDataLogger.ExchangeFeed;
 
@@ -19,10 +21,10 @@ public sealed class FeedSupervisor : BackgroundService
     private readonly ILoggerFactory _loggers;
     private readonly ILogger<FeedSupervisor> _logger;
 
-    private readonly List<(BybitSymbolFeed Feed, Task Task)> _running = new();
+    private readonly List<(TradeFeed Feed, Task Task)> _running = new();
     private CancellationTokenSource? _feedsCts;
     private string? _appliedKey;
-    private volatile IReadOnlyList<BybitSymbolFeed> _feeds = Array.Empty<BybitSymbolFeed>();
+    private volatile IReadOnlyList<TradeFeed> _feeds = Array.Empty<TradeFeed>();
 
     public FeedSupervisor(IOptions<ServiceOptions> options, IHttpClientFactory http, ILoggerFactory loggers)
     {
@@ -36,7 +38,7 @@ public sealed class FeedSupervisor : BackgroundService
     public string DataPath   => Environment.ExpandEnvironmentVariables(_options.DataPath);
     public FeedConfig? Config { get; private set; }
     public string? Problem { get; private set; }
-    public IReadOnlyList<BybitSymbolFeed> Feeds => _feeds;
+    public IReadOnlyList<TradeFeed> Feeds => _feeds;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -87,26 +89,28 @@ public sealed class FeedSupervisor : BackgroundService
         }
         Problem = null;
 
-        if (!cfg.Bybit.Enabled || cfg.Bybit.Symbols.Length == 0)
+        _feedsCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var token = _feedsCts.Token;
+        var feeds = new List<TradeFeed>();
+        var bybit   = new BybitClient(_http.CreateClient("exchange"));
+        var binance = new BinanceClient(_http.CreateClient("exchange"));
+
+        void Start(ExchangeConfig ex, string exchange, Func<string, IExchangeSource> source)
         {
-            _logger.LogInformation("Bybit feed disabled in config");
-            return;
+            if (!ex.Enabled) { _logger.LogInformation("{Exchange} feeds disabled in config", exchange); return; }
+            foreach (var symbol in ex.NormalizedSymbols())
+            {
+                var feed = new TradeFeed(source(symbol), folder, ex.HistoryDaysFor(symbol), ex.VolumeMultiplierFor(symbol),
+                    DataPath, _loggers.CreateLogger($"{exchange}.{symbol}"));
+                feeds.Add(feed);
+                _running.Add((feed, Task.Run(() => feed.RunAsync(token))));
+                _logger.LogInformation("{Exchange} {Symbol} -> {File} (historyDays={Days})",
+                    exchange, symbol, feed.ScidPath, ex.HistoryDaysFor(symbol));
+            }
         }
 
-        _feedsCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        var client = new BybitClient(_http.CreateClient("bybit"));
-        var feeds = new List<BybitSymbolFeed>();
-        foreach (var symbol in cfg.Bybit.Symbols
-                     .Where(s => !string.IsNullOrWhiteSpace(s))
-                     .Select(s => s.Trim().ToUpperInvariant())
-                     .Distinct())
-        {
-            var feed = new BybitSymbolFeed(symbol, folder, cfg.Bybit, client, DataPath,
-                _loggers.CreateLogger($"Bybit.{symbol}"));
-            feeds.Add(feed);
-            _running.Add((feed, Task.Run(() => feed.RunAsync(_feedsCts.Token))));
-            _logger.LogInformation("Bybit {Symbol} -> {File} (historyDays={Days})", symbol, feed.ScidPath, cfg.Bybit.HistoryDays);
-        }
+        Start(cfg.Bybit,   "Bybit",   s => new BybitSource(s, bybit, _loggers.CreateLogger($"Bybit.{s}")));
+        Start(cfg.Binance, "Binance", s => new BinanceSource(s, binance, _loggers.CreateLogger($"Binance.{s}")));
         _feeds = feeds;
     }
 
@@ -118,6 +122,6 @@ public sealed class FeedSupervisor : BackgroundService
         _running.Clear();
         _feedsCts.Dispose();
         _feedsCts = null;
-        _feeds = Array.Empty<BybitSymbolFeed>();
+        _feeds = Array.Empty<TradeFeed>();
     }
 }

@@ -2,7 +2,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using YieldDataLogger.ExchangeFeed.Bybit;
+using YieldDataLogger.ExchangeFeed.Feeds;
 
 namespace YieldDataLogger.ExchangeFeed;
 
@@ -61,9 +61,9 @@ public sealed class StatusWriter : BackgroundService
     }
 
     // A snapshot races the feed task that owns the state; a torn read just skips one refresh.
-    private static FeedStatus Safe(BybitSymbolFeed feed)
+    private static FeedStatus Safe(TradeFeed feed)
     {
         try { return feed.Snapshot(); }
-        catch { return new FeedStatus { Exchange = "Bybit", File = feed.ScidPath, Phase = "(refreshing)" }; }
+        catch { return new FeedStatus { Exchange = feed.Exchange, Symbol = feed.Symbol, File = feed.ScidPath, Phase = "(refreshing)" }; }
     }
 }
