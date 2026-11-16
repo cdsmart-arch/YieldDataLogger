@@ -122,7 +122,7 @@ begin
     'Sierra Chart Data folder',
     'Where should the .scid files be written?',
     'Pick the Data folder of the Sierra Chart install that should receive the exchange feed ' +
-    '(for example C:\SierraChart\Data). Bybit XAUUSDT will appear in Sierra as symbol XAUUSDT_BYBIT. ' +
+    '(for example C:\SierraChart\Data). Bybit XAUUSDT will appear in Sierra as symbol _XAUUSDT_BYBIT. ' +
     'You can change this later via Start menu > CSI Exchange Feed > Edit Exchange Feed settings.',
     False, '');
   SierraPage.Add('');
