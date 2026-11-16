@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YieldDataLogger.Manager", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YieldDataLogger.Migrate", "src\YieldDataLogger.Migrate\YieldDataLogger.Migrate.csproj", "{1FCADC2B-9FB6-4642-930E-8EE800E2D2EC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YieldDataLogger.ExchangeFeed", "src\YieldDataLogger.ExchangeFeed\YieldDataLogger.ExchangeFeed.csproj", "{064FD99A-3E05-4D82-BE43-4CBFF81893EB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -50,6 +52,10 @@ Global
 		{1FCADC2B-9FB6-4642-930E-8EE800E2D2EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1FCADC2B-9FB6-4642-930E-8EE800E2D2EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1FCADC2B-9FB6-4642-930E-8EE800E2D2EC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{064FD99A-3E05-4D82-BE43-4CBFF81893EB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{064FD99A-3E05-4D82-BE43-4CBFF81893EB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{064FD99A-3E05-4D82-BE43-4CBFF81893EB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{064FD99A-3E05-4D82-BE43-4CBFF81893EB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{8FEADBDF-6EB6-4ED1-8D45-049229E91AC4} = {E7C665D6-FF74-4BFB-A7F8-66902D15080F}
@@ -58,5 +64,6 @@ Global
 		{BF29B019-9B5E-450A-871D-ED942D8A9092} = {E7C665D6-FF74-4BFB-A7F8-66902D15080F}
 		{63C83F66-3F73-4879-8A37-80385F9A9546} = {E7C665D6-FF74-4BFB-A7F8-66902D15080F}
 		{1FCADC2B-9FB6-4642-930E-8EE800E2D2EC} = {E7C665D6-FF74-4BFB-A7F8-66902D15080F}
+		{064FD99A-3E05-4D82-BE43-4CBFF81893EB} = {E7C665D6-FF74-4BFB-A7F8-66902D15080F}
 	EndGlobalSection
 EndGlobal

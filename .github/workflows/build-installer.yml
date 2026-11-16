@@ -10,7 +10,8 @@ on:
     # workflow would never fire for a `v*` tag, which is exactly when we cut a
     # release. Public repo, so the extra runs cost nothing.
     tags:
-      - 'v*'
+      - 'v*'        # YieldDataLogger release
+      - 'feed-v*'   # CSI Exchange Feed release (separate installer, separate Release)
   workflow_dispatch:
 
 jobs:
@@ -46,11 +47,21 @@ jobs:
             -o dist/Manager
 
       # -----------------------------------------------------------------------
+      - name: Publish Exchange Feed (self-contained win-x64)
+        run: |
+          dotnet publish src/YieldDataLogger.ExchangeFeed `
+            -c Release -r win-x64 --self-contained `
+            -o dist/ExchangeFeed
+
+      # -----------------------------------------------------------------------
       # Inno Setup is pre-installed on GitHub windows-latest runners.
       # iscc.exe is the command-line compiler.
       - name: Build installer with Inno Setup
         run: |
           & "C:\Program Files (x86)\Inno Setup 6\iscc.exe" installer\YieldDataLogger.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "C:\Program Files (x86)\Inno Setup 6\iscc.exe" installer\ExchangeFeed.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         shell: pwsh
 
       # -----------------------------------------------------------------------
@@ -80,12 +91,13 @@ jobs:
                        Sort-Object FullName -Descending | Select-Object -First 1).FullName
           if (-not $signtool) { throw "signtool.exe not found in Windows Kits" }
 
-          $installer = (Get-Item "dist\installer\YieldDataLogger-Setup-*.exe").FullName
-          & $signtool sign /f $pfxPath /p $env:PFX_PASS `
-            /tr http://timestamp.digicert.com /td sha256 /fd sha256 $installer
+          foreach ($installer in (Get-Item "dist\installer\*-Setup-*.exe").FullName) {
+            & $signtool sign /f $pfxPath /p $env:PFX_PASS `
+              /tr http://timestamp.digicert.com /td sha256 /fd sha256 $installer
+            Write-Host "Installer signed: $installer"
+          }
 
           Remove-Item $pfxPath -Force
-          Write-Host "Installer signed: $installer"
 
       # -----------------------------------------------------------------------
       # Upload the installer exe so it can be downloaded from the Actions tab.
@@ -96,6 +108,13 @@ jobs:
           path: dist/installer/YieldDataLogger-Setup-*.exe
           retention-days: 30
 
+      - name: Upload Exchange Feed installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CSI-ExchangeFeed-Setup
+          path: dist/installer/CSI-ExchangeFeed-Setup-*.exe
+          retention-days: 30
+
       # -----------------------------------------------------------------------
       # If this is a tagged release (v1.0, v1.1, …) attach the installer to
       # the GitHub Release automatically.
@@ -104,3 +123,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/installer/YieldDataLogger-Setup-*.exe
+
+      # feed-v1.0, feed-v1.1, ... publish only the Exchange Feed installer.
+      - name: Attach Exchange Feed to GitHub Release (feed-v* tags only)
+        if: startsWith(github.ref, 'refs/tags/feed-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/installer/CSI-ExchangeFeed-Setup-*.exe
