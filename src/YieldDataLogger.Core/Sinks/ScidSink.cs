@@ -1,11 +1,10 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Data.SQLite;
-using System.Security.AccessControl;
-using System.Security.Principal;
 using Microsoft.Extensions.Logging;
 using YieldDataLogger.Core.Abstractions;
 using YieldDataLogger.Core.Logging;
 using YieldDataLogger.Core.Models;
+using YieldDataLogger.Core.Sierra;
 
 namespace YieldDataLogger.Core.Sinks;
 
@@ -31,11 +30,8 @@ namespace YieldDataLogger.Core.Sinks;
 /// </summary>
 public sealed class ScidSink : IPriceSink
 {
-    private const int HeaderSize = 56;
-    private const int RecordSize = 40;
-
-    /// <summary>Microseconds between the Sierra epoch (1899-12-30) and the Unix epoch.</summary>
-    private const long UnixEpochOffsetUs = 25_569L * 86_400L * 1_000_000L;
+    private const int HeaderSize = ScidFormat.HeaderSize;
+    private const int RecordSize = ScidFormat.RecordSize;
 
     private readonly ILogger<ScidSink> _logger;
     private readonly string? _historyDirectory;
@@ -326,89 +322,21 @@ public sealed class ScidSink : IPriceSink
         state.LastWrittenUs = lastWritten;
     }
 
-    /// <summary>Index of the first record whose timestamp is &gt;= <paramref name="us"/>.</summary>
-    private static long LowerBound(FileStream fs, long count, long us)
-    {
-        if (us == long.MinValue) return 0;
-        long lo = 0, hi = count;
-        while (lo < hi)
-        {
-            var mid = lo + (hi - lo) / 2;
-            if (ReadTimestamp(fs, mid) < us) lo = mid + 1; else hi = mid;
-        }
-        return lo;
-    }
-
-    private static long ReadTimestamp(FileStream fs, long index)
-    {
-        Span<byte> buf = stackalloc byte[8];
-        fs.Seek(HeaderSize + index * RecordSize, SeekOrigin.Begin);
-        fs.ReadExactly(buf);
-        return BitConverter.ToInt64(buf);
-    }
+    // File layout and sharing/ACL handling live in ScidFormat, shared with ScidTradeFile.
+    private static long LowerBound(FileStream fs, long count, long us) => ScidFormat.LowerBound(fs, count, us);
+    private static long ReadTimestamp(FileStream fs, long index) => ScidFormat.ReadTimestamp(fs, index);
+    private static FileStream OpenShared(string file, FileMode mode) => ScidFormat.OpenShared(file, mode);
+    private static void WriteHeader(BinaryWriter w) => ScidFormat.WriteHeader(w);
+    private static void WriteRecord(BinaryWriter w, long sierraUs, double price) =>
+        ScidFormat.WriteRecord(w, ScidRec.Price(sierraUs, price));
+    private static long ToSierraUs(double unixSeconds) => ScidFormat.UnixSecondsToSierraUs(unixSeconds);
+    private static double FromSierraUs(long us) => ScidFormat.SierraUsToUnixSeconds(us);
+    private void GrantUsersModify(string file) => ScidFormat.GrantUsersModify(file, _logger);
 
     private static long CountRecords(string file)
     {
-        try { return (new FileInfo(file).Length - HeaderSize) / RecordSize; }
+        try { return ScidFormat.RecordCount(new FileInfo(file).Length); }
         catch { return -1; }
-    }
-
-    private static FileStream OpenShared(string file, FileMode mode) =>
-        new(file, mode, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete);
-
-    private static void WriteHeader(BinaryWriter w)
-    {
-        w.Write("SCID"u8);        // FileTypeUniqueHeaderID
-        w.Write((uint)HeaderSize);
-        w.Write((uint)RecordSize);
-        w.Write((ushort)1);       // Version
-        w.Write((ushort)0);       // Unused1
-        w.Write((uint)0);         // UTCStartIndex
-        w.Write(new byte[36]);    // Reserve
-    }
-
-    private static void WriteRecord(BinaryWriter w, long sierraUs, double price)
-    {
-        var p = (float)price;
-        w.Write(sierraUs);
-        w.Write(p);          // Open
-        w.Write(p);          // High
-        w.Write(p);          // Low
-        w.Write(p);          // Close
-        w.Write((uint)1);    // NumTrades - 1 per tick so "number of trades" bars work
-        w.Write((uint)1);    // TotalVolume - source has no volume; 1 keeps volume-based studies sane
-        w.Write((uint)0);    // BidVolume
-        w.Write((uint)0);    // AskVolume
-    }
-
-    private static long ToSierraUs(double unixSeconds) =>
-        (long)Math.Round(unixSeconds * 1_000_000d) + UnixEpochOffsetUs;
-
-    private static double FromSierraUs(long us) => (us - UnixEpochOffsetUs) / 1_000_000d;
-
-    /// <summary>
-    /// The Agent service runs as LocalSystem, so files it creates are owned by SYSTEM.
-    /// Inherited ACLs on a Sierra Data folder usually let users read, but not always write
-    /// or delete - add an explicit Users:Modify ACE so Sierra and the user have full use.
-    /// </summary>
-    private void GrantUsersModify(string file)
-    {
-        if (!OperatingSystem.IsWindows()) return;
-        try
-        {
-            var fi  = new FileInfo(file);
-            var acl = fi.GetAccessControl();
-            acl.AddAccessRule(new FileSystemAccessRule(
-                new SecurityIdentifier(WellKnownSidType.BuiltinUsersSid, null),
-                FileSystemRights.Modify,
-                AccessControlType.Allow));
-            fi.SetAccessControl(acl);
-        }
-        catch (Exception ex)
-        {
-            // Not fatal - Sierra can typically still read via inherited permissions.
-            _logger.LogWarning(ex, "Could not grant Users access to {File}", file);
-        }
     }
 
     private void LogFailure(string symbol, string op, Exception ex)
