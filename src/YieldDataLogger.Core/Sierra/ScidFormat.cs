@@ -93,6 +93,34 @@ public static class ScidFormat
         return lo;
     }
 
+    /// <summary>
+    /// Makes the file end on a whole, real record and returns how many records it now holds.
+    /// A power cut can leave a torn partial record, or whole records the OS zero-filled
+    /// because the file length was committed before the data. A zero (1899) timestamp at the
+    /// end would make every writer resume from 1899 and append out of order, so trailing
+    /// records stamped at/before the Sierra epoch or more than a day in the future are dropped as well.
+    /// <paramref name="tornBytes"/> and <paramref name="badRecords"/> say what was removed, for logging.
+    /// </summary>
+    public static long TrimDamagedTail(FileStream fs, out long tornBytes, out long badRecords)
+    {
+        var n = RecordCount(fs.Length);
+        var aligned = HeaderSize + n * RecordSize;
+        tornBytes = Math.Max(0, fs.Length - aligned);
+
+        var latestOk = UnixUsToSierraUs((DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + 86_400_000L) * 1000);
+        var keep = n;
+        while (keep > 0)
+        {
+            var us = ReadTimestamp(fs, keep - 1);
+            if (us > 0 && us <= latestOk) break;
+            keep--;
+        }
+        badRecords = n - keep;
+
+        if (tornBytes > 0 || badRecords > 0) fs.SetLength(HeaderSize + keep * RecordSize);
+        return keep;
+    }
+
     public static long ReadTimestamp(FileStream fs, long index)
     {
         Span<byte> buf = stackalloc byte[8];

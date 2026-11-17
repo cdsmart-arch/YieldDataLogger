@@ -6,13 +6,12 @@ namespace YieldDataLogger.ExchangeFeed.Binance;
 /// <summary>
 /// Binance USDⓈ-M perpetuals or spot (see <see cref="BinanceMarket"/>). History: daily aggTrades archive. Gap fill: real aggTrades
 /// with side from REST - first located by time (1 h windows), then paged forward by id up to
-/// now - so gaps don't need repairing. Only a gap older than <see cref="MaxRestGap"/> is left
-/// to the archive.
+/// now - so gaps don't need repairing. Only the part of a gap older than the market's
+/// <see cref="BinanceMarket.MaxRestGap"/> is left to the archive.
 /// </summary>
 public sealed class BinanceSource : IExchangeSource
 {
     private const long HourMs = 3_600_000;
-    private static readonly TimeSpan MaxRestGap = TimeSpan.FromDays(3);
 
     private readonly BinanceClient _client;
     private readonly ILogger _logger;
@@ -42,7 +41,7 @@ public sealed class BinanceSource : IExchangeSource
     {
         var nowMs   = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var fromMs  = gap.FromUnixUs == long.MinValue ? gap.TodayStartMs : gap.FromUnixUs / 1000;
-        var startMs = Math.Max(fromMs, nowMs - (long)MaxRestGap.TotalMilliseconds);
+        var startMs = Math.Max(fromMs, nowMs - (long)_client.Market.MaxRestGap.TotalMilliseconds);
         if (startMs > fromMs) gap.MarkApproximate(fromMs, startMs);   // too far back for REST: archive repairs it
 
         // Locate the first trade at/after startMs (inclusive: same-millisecond fills are

@@ -176,14 +176,12 @@ public sealed class ScidTradeFile
 
     private void Load(FileStream fs)
     {
-        var n = ScidFormat.RecordCount(fs.Length);
-        var aligned = ScidFormat.HeaderSize + n * ScidFormat.RecordSize;
-        if (fs.Length != aligned)
-        {
-            // A torn trailing record (power loss mid-write) would misalign everything after it.
-            _logger.LogWarning("Trimming {Bytes} torn trailing bytes from {File}", fs.Length - aligned, FilePath);
-            fs.SetLength(aligned);
-        }
+        // Power loss can leave a torn record or zero-filled records at the end; resuming from
+        // those would misalign the file or restart the gap fill from 1899.
+        var n = ScidFormat.TrimDamagedTail(fs, out var torn, out var bad);
+        if (torn > 0 || bad > 0)
+            _logger.LogWarning("Trimmed a damaged tail from {File}: {Bytes} torn bytes, {Records} records with no valid time",
+                FilePath, torn, bad);
         Count  = n;
         LastUs = n > 0 ? ScidFormat.ReadTimestamp(fs, n - 1) : long.MinValue;
     }

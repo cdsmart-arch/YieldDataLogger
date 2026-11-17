@@ -7,7 +7,7 @@
 ; ---------------------------------------------------------------------------
 
 #define AppName      "CSI Exchange Feed"
-#define AppVersion   "1.2"
+#define AppVersion   "1.3"
 #define AppPublisher "cdsmart-arch"
 #define AppURL       "https://github.com/cdsmart-arch/YieldDataLogger"
 #define ServiceName  "YieldDataLogger.ExchangeFeed"

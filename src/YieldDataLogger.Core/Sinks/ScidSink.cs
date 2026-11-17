@@ -201,11 +201,12 @@ public sealed class ScidSink : IPriceSink
                 created = true;
             }
 
-            // Drop a torn trailing record (e.g. power loss mid-write); otherwise every record
-            // appended after it would be misaligned and Sierra would read garbage.
-            records = (fs.Length - HeaderSize) / RecordSize;
-            var aligned = HeaderSize + records * RecordSize;
-            if (fs.Length != aligned) fs.SetLength(aligned);
+            // Drop a torn trailing record or zero-filled records (power loss mid-write);
+            // otherwise appends would be misaligned, or resume from a 1899 timestamp.
+            records = ScidFormat.TrimDamagedTail(fs, out var torn, out var bad);
+            if (torn > 0 || bad > 0)
+                _logger.LogWarning("ScidSink trimmed a damaged tail from {File}: {Bytes} torn bytes, {Records} records with no valid time.",
+                    state.File, torn, bad);
 
             if (records > 0)
             {

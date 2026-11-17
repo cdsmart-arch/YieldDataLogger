@@ -19,24 +19,27 @@ public sealed record BinanceMarket(
     string WebSocketBase,       // + "{symbol lowercase}@aggTrade"
     bool IsFutures,
     TimeSpan MinInterval,       // pacing between REST calls
-    int WeightSoftLimit)        // back off for the rest of the minute above this used weight
+    int WeightSoftLimit,        // back off for the rest of the minute above this used weight
+    TimeSpan MaxRestGap)        // furthest back a startTime search may go; older gaps wait for the archive
 {
     /// <summary>
     /// USDⓈ-M perpetuals. aggTrades costs 20 weight of the 2400/min IP budget, so one call per
     /// 600 ms (<= 2000/min). Since the 2026 routing change aggTrade streams live under /market.
+    /// A startTime search more than 2 days back is refused (400, code -4166 "Search window is
+    /// restricted to recent 2 days only"), so stay an hour inside that.
     /// </summary>
     public static readonly BinanceMarket UsdMFutures = new(
         "Binance", "https://fapi.binance.com", "/fapi/v1/aggTrades",
         "https://data.binance.vision/data/futures/um/daily/aggTrades",
         "wss://fstream.binance.com/market/ws/", IsFutures: true,
-        TimeSpan.FromMilliseconds(600), 2000);
+        TimeSpan.FromMilliseconds(600), 2000, TimeSpan.FromHours(47));
 
-    /// <summary>Spot. aggTrades costs 4 weight of the 6000/min IP budget.</summary>
+    /// <summary>Spot. aggTrades costs 4 weight of the 6000/min IP budget; no search-window limit seen.</summary>
     public static readonly BinanceMarket Spot = new(
         "BinanceSpot", "https://api.binance.com", "/api/v3/aggTrades",
         "https://data.binance.vision/data/spot/daily/aggTrades",
         "wss://stream.binance.com:9443/ws/", IsFutures: false,
-        TimeSpan.FromMilliseconds(200), 5000);
+        TimeSpan.FromMilliseconds(200), 5000, TimeSpan.FromDays(3));
 }
 
 /// <summary>
@@ -233,7 +236,14 @@ public sealed class BinanceClient
 
             using (resp)
             {
-                resp.EnsureSuccessStatusCode();
+                if (!resp.IsSuccessStatusCode)
+                {
+                    // Binance explains refusals in the body ({"code":-4166,"msg":...}); keep it in the error.
+                    var body = await resp.Content.ReadAsStringAsync(ct);
+                    if (body.Length > 300) body = body[..300];
+                    throw new HttpRequestException(
+                        $"{Market.Exchange} {(int)resp.StatusCode} {resp.ReasonPhrase} for {url}: {body}", null, resp.StatusCode);
+                }
                 await using var s = await resp.Content.ReadAsStreamAsync(ct);
                 return await JsonDocument.ParseAsync(s, cancellationToken: ct);
             }
